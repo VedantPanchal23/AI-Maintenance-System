@@ -1,0 +1,77 @@
+# Backend Dependencies — AI Predictive Maintenance System
+# ========================================================
+# IMPORTANT: Install PyTorch with CUDA FIRST using setup_env.bat
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Then install this file:
+#   pip install -r requirements.txt
+# ========================================================
+
+# --- Web Framework ---
+fastapi==0.109.0
+slowapi==0.1.9
+imbalanced-learn==0.12.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+websockets==12.0
+
+# --- Database ---
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# --- Redis ---
+redis[hiredis]==5.0.1
+
+# --- Authentication ---
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # Pin to 4.0.x for passlib compatibility (4.1+ removed __about__)
+
+# --- Validation & Serialization ---
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# --- ML / Data Science ---
+scikit-learn==1.4.0
+xgboost==2.0.3
+lightgbm==4.2.0
+pandas==2.2.3
+numpy==1.26.3
+joblib==1.3.2
+
+# --- Deep Learning ---
+# PyTorch with CUDA 12.1 is installed separately via setup_env.bat
+# DO NOT add torch/torchvision here — pip will install CPU-only version
+# The setup script installs: torch torchvision torchaudio (CUDA 12.1)
+
+# --- Data Processing ---
+scipy==1.12.0
+
+# --- HTTP Client ---
+httpx==0.26.0
+
+# --- Logging & Monitoring ---
+structlog==24.1.0
+python-json-logger==2.0.7
+prometheus-client==0.19.0
+
+# --- Email ---
+aiosmtplib==3.0.1
+
+# --- Utilities ---
+python-dotenv==1.0.0
+apscheduler==3.10.4
+tenacity==8.2.3
+
+# --- Testing ---
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+factory-boy==3.3.1
+
+# --- Code Quality ---
+black==24.1.0
+isort==5.13.2
+ruff==0.1.14
