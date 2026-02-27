@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════
+   Zydus Pharma — Predictive Maintenance
+   Global Styles
+   ═══════════════════════════════════════════ */
+
+:root {
+  --brand-primary: #1e40af;
+  --brand-secondary: #3b82f6;
+  --brand-accent: #06b6d4;
+  --bg-main: #f8fafc;
+  --sidebar-width: 260px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* ─── Card / Panel ─── */
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:shadow-md hover:border-slate-300;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+  .stat-value {
+    @apply text-2xl font-bold text-slate-900;
+  }
+  .stat-label {
+    @apply text-sm font-medium text-slate-500;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           bg-blue-600 text-white font-medium rounded-lg
+           hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-colors duration-150;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           bg-white text-slate-700 font-medium rounded-lg border border-slate-300
+           hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2
+           transition-colors duration-150;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
+           bg-red-600 text-white font-medium rounded-lg
+           hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           transition-colors duration-150;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg
+           text-sm placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           transition-colors duration-150;
+  }
+}
+
+/* ─── Animations ─── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slide-in 0.2s ease-out;
+}
+
+/* ─── Gauge ─── */
+.gauge-bg {
+  stroke: #e2e8f0;
+}
+.gauge-low {
+  stroke: #22c55e;
+}
+.gauge-medium {
+  stroke: #eab308;
+}
+.gauge-high {
+  stroke: #f97316;
+}
+.gauge-critical {
+  stroke: #ef4444;
+}
