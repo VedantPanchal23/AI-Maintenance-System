@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ML artifacts
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.onnx
+mlruns/
+
+# Keep model directory structure
+!backend/ml_models/saved_models/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node
+node_modules/
+.next/
+out/
+build/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Data files (large)
+data/raw/*.parquet
+!data/raw/.gitkeep
+
+# Temp scripts
+backend/_check_db.py
+backend/_check_tables.py
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
