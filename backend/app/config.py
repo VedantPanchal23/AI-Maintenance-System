@@ -17,6 +17,8 @@ _INSECURE_DEFAULTS = {
     "dev-secret-key-replace-in-production",
     "change_me_in_production",
     "test-secret-key-for-unit-testing",
+    "dev-secret-key-for-local-testing-only",
+    "super-secret-key-change-in-production",
 }
 
 
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
     # ── Application ──────────────────────────────────────────────
     APP_NAME: str = "predictive-maintenance"
     APP_ENV: str = "development"  # development | staging | production
-    APP_DEBUG: bool = True
+    APP_DEBUG: bool = False
     APP_VERSION: str = "1.0.0"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
@@ -36,7 +38,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "predictive_maintenance"
     POSTGRES_USER: str = "pmuser"
-    POSTGRES_PASSWORD: str = "change_me_in_production"
+    POSTGRES_PASSWORD: str = ""
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
 
@@ -64,7 +66,7 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # ── JWT ──────────────────────────────────────────────────────
-    JWT_SECRET_KEY: str = "dev-secret-key-replace-in-production"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -83,10 +85,10 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    ALERT_FROM_EMAIL: str = "alerts@predictive-maintenance.local"
+    ALERT_FROM_EMAIL: str = ""
 
     # ── Simulation ───────────────────────────────────────────────
-    SIMULATION_ENABLED: bool = True
+    SIMULATION_ENABLED: bool = False
     SIMULATION_INTERVAL_SECONDS: int = 5
     SIMULATION_EQUIPMENT_COUNT: int = 10
 
@@ -94,6 +96,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"  # json | console
     LOG_FILE: Optional[str] = "logs/app.log"
+
+    # ── Trusted Hosts ────────────────────────────────────────────
+    ALLOWED_HOSTS: List[str] = ["localhost"]
 
     # ── CORS ─────────────────────────────────────────────────────
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
@@ -106,22 +111,30 @@ class Settings(BaseSettings):
             return json.loads(v)
         return v
 
+    @field_validator("ALLOWED_HOSTS", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, v: str | List[str]) -> List[str]:
+        if isinstance(v, str):
+            import json
+            return json.loads(v)
+        return v
+
     @model_validator(mode="after")
     def validate_security(self):
         """Warn or block on insecure secrets in non-development environments."""
         is_prod = self.APP_ENV in ("production", "staging")
 
         # JWT Secret validation
-        if self.JWT_SECRET_KEY in _INSECURE_DEFAULTS:
+        if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in _INSECURE_DEFAULTS:
             if is_prod:
                 raise ValueError(
-                    "CRITICAL: JWT_SECRET_KEY is set to an insecure default. "
-                    "Set a strong secret via environment variable for production."
+                    "CRITICAL: JWT_SECRET_KEY is missing or insecure. "
+                    "Set a strong secret via JWT_SECRET_KEY environment variable."
                 )
             else:
                 warnings.warn(
-                    "JWT_SECRET_KEY is using a default value. "
-                    "Set a strong secret for production.",
+                    "JWT_SECRET_KEY is empty or using an insecure default. "
+                    "Set a strong secret via environment variable.",
                     stacklevel=2,
                 )
 
@@ -131,10 +144,10 @@ class Settings(BaseSettings):
             )
 
         # DB password validation
-        if self.POSTGRES_PASSWORD in _INSECURE_DEFAULTS and is_prod:
+        if (not self.POSTGRES_PASSWORD or self.POSTGRES_PASSWORD in _INSECURE_DEFAULTS) and is_prod:
             raise ValueError(
-                "CRITICAL: POSTGRES_PASSWORD is set to an insecure default. "
-                "Change it immediately for production."
+                "CRITICAL: POSTGRES_PASSWORD is missing or insecure. "
+                "Set it via POSTGRES_PASSWORD environment variable."
             )
 
         # Disable debug in production

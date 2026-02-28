@@ -56,10 +56,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-predictive_maintenance}
       POSTGRES_USER: ${POSTGRES_USER:-pmuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pmpass123}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-key-change-in-production}
       CORS_ORIGINS: '["http://localhost:3000","http://frontend:3000"]'
-      ML_MODEL_DIR: /app/ml_models
+      ML_MODEL_DIR: /app/ml_models/saved_models
       LOG_LEVEL: info
       APP_ENV: production
       APP_DEBUG: "false"
@@ -74,6 +76,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_WS_URL: ws://localhost:8000
     container_name: pm_frontend
     restart: unless-stopped
     depends_on:
