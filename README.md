@@ -1,8 +1,6 @@
 # AI-Based Predictive Maintenance System
 
-## Zydus Pharma Oncology Pvt. Ltd.
-
-A production-grade, AI-powered predictive maintenance platform for pharmaceutical manufacturing equipment. Uses **real-time sensor monitoring**, **GPU-accelerated deep learning**, and **multi-model ensemble predictions** to prevent unplanned downtime.
+A production-grade, AI-powered predictive maintenance platform for manufacturing equipment. Uses **real-time sensor monitoring**, **GPU-accelerated deep learning**, and **multi-model ensemble predictions** to prevent unplanned downtime.
 
 ---
 
@@ -143,7 +141,7 @@ npm run dev
 
 - **Dashboard**: http://localhost:3000
 - **API Docs**: http://localhost:8000/docs
-- **Login**: admin@zydus.com / admin123
+- **Login**: Use the credentials you configured via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars
 
 ---
 
@@ -249,4 +247,4 @@ See `.env.example` for all configurable settings:
 
 ## License
 
-Proprietary — Zydus Pharma Oncology Pvt. Ltd.
+Proprietary — See LICENSE file.

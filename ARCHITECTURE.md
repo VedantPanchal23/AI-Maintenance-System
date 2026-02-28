@@ -1,5 +1,5 @@
 # AI-Based Predictive Maintenance System
-## Architecture Document — Zydus Pharma Oncology Pvt. Ltd.
+## Architecture Document
 
 ---
 
