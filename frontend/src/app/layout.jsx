@@ -10,8 +10,11 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Predictive Maintenance — Zydus Pharma",
-  description: "AI-Based Predictive Maintenance for Pharmaceutical Manufacturing",
+  title: "AI Predictive Maintenance Platform",
+  description: "AI-Based Predictive Maintenance for Manufacturing",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }) {

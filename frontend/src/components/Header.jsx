@@ -2,7 +2,11 @@
 
 import { useAuthStore, useAlertStore } from "@/lib/store";
 import { useEffect } from "react";
-import { BellIcon, ArrowRightOnRectangleIcon, Bars3Icon } from "@heroicons/react/24/outline";
+import {
+  BellIcon,
+  ArrowRightOnRectangleIcon,
+  Bars3Icon,
+} from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 
 export default function Header({ onMenuToggle }) {
@@ -22,56 +26,64 @@ export default function Header({ onMenuToggle }) {
   };
 
   return (
-    <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
-      {/* Left: hamburger + Page context */}
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      {/* Left */}
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="lg:hidden p-2 -ml-2 rounded-xl hover:bg-slate-100 transition-colors"
             aria-label="Open menu"
           >
-            <Bars3Icon className="h-5 w-5 text-slate-600" />
+            <Bars3Icon className="h-5 w-5 text-slate-500" />
           </button>
         )}
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">
+          <h1 className="text-base font-semibold text-slate-800 tracking-tight">
             AI Predictive Maintenance
           </h1>
-          <p className="text-xs text-slate-500">
-            Zydus Pharma Oncology Pvt. Ltd.
-          </p>
+          {user?.organization_name && (
+            <p className="text-2xs text-slate-400 font-medium">
+              {user.organization_name}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Right: Alerts + User */}
-      <div className="flex items-center gap-4">
+      {/* Right */}
+      <div className="flex items-center gap-2">
         {/* Alert bell */}
         <button
           onClick={() => router.push("/alerts")}
-          className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
+          className="relative p-2.5 rounded-xl hover:bg-slate-100 transition-colors"
         >
-          <BellIcon className="h-5 w-5 text-slate-600" />
+          <BellIcon className="h-[1.125rem] w-[1.125rem] text-slate-500" />
           {activeAlerts.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+            <span className="absolute top-1.5 right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[0.625rem] font-bold text-white ring-2 ring-white animate-pulse-ring">
               {activeAlerts.length > 9 ? "9+" : activeAlerts.length}
             </span>
           )}
         </button>
 
-        {/* User info */}
+        {/* Divider */}
+        {user && <div className="h-6 w-px bg-slate-200/80 mx-1" />}
+
+        {/* User section */}
         {user && (
-          <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-900">{user.full_name}</p>
-              <p className="text-xs text-slate-500 capitalize">{user.role}</p>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 text-xs font-bold">
+              {user.full_name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div className="hidden sm:block text-right">
+              <p className="text-[0.8125rem] font-medium text-slate-700 leading-tight">{user.full_name}</p>
+              <p className="text-2xs text-slate-400 capitalize">{user.role}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
               title="Logout"
             >
-              <ArrowRightOnRectangleIcon className="h-5 w-5 text-slate-500" />
+              <ArrowRightOnRectangleIcon className="h-[1.125rem] w-[1.125rem]" />
             </button>
           </div>
         )}

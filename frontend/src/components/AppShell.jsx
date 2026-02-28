@@ -30,25 +30,33 @@ export default function AppShell({ children }) {
     initialize();
   }, [initialize]);
 
-  const isLoginPage = pathname === "/login";
+  const isPublicPage = pathname === "/login" || pathname === "/register";
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !isLoginPage) {
+    if (!isLoading && !isAuthenticated && !isPublicPage) {
       router.push("/login");
     }
-  }, [isLoading, isAuthenticated, isLoginPage, router]);
+  }, [isLoading, isAuthenticated, isPublicPage, router]);
 
-  // Login page — no sidebar / header shell
-  if (isLoginPage) {
+  // Public pages (login, register) — no sidebar / header shell
+  if (isPublicPage) {
     return <ErrorBoundary>{children}</ErrorBoundary>;
+  }
+
+  // Not authenticated — block rendering while redirecting
+  if (!isLoading && !isAuthenticated) {
+    return null;
   }
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full" />
+      <div className="flex items-center justify-center min-h-screen bg-surface-50">
+        <div className="flex flex-col items-center gap-4 animate-fade-in">
+          <div className="animate-spin h-9 w-9 border-[3px] border-brand-600 border-t-transparent rounded-full" />
+          <p className="text-sm text-slate-400 font-medium">Loading…</p>
+        </div>
       </div>
     );
   }
@@ -56,12 +64,14 @@ export default function AppShell({ children }) {
   // Authenticated layout — sidebar + header + main
   return (
     <ErrorBoundary>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-screen overflow-hidden bg-surface-50">
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header onMenuToggle={() => setMobileOpen((v) => !v)} />
-          <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
-            {children}
+          <main className="flex-1 overflow-y-auto p-5 lg:p-6">
+            <div className="mx-auto max-w-[1440px] animate-fade-in">
+              {children}
+            </div>
           </main>
         </div>
       </div>
