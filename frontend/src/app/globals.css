@@ -2,17 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ═══════════════════════════════════════════
-   Zydus Pharma — Predictive Maintenance
-   Global Styles
-   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   AI Predictive Maintenance — Design System
+   Clean, professional, enterprise-grade theme
+   ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  --brand-primary: #1e40af;
-  --brand-secondary: #3b82f6;
-  --brand-accent: #06b6d4;
-  --bg-main: #f8fafc;
+  --brand-primary: #2457eb;
+  --brand-accent:  #3b6ff6;
+  --bg-main:       #f1f5f9;
+  --bg-card:       #ffffff;
   --sidebar-width: 260px;
+  --header-height: 64px;
+  --radius:        0.75rem;
 }
 
 * {
@@ -21,131 +23,177 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-  font-family: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+  @apply bg-surface-100 text-slate-800 antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400;
-}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300/60 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400/70; }
 
-/* ─── Card / Panel ─── */
+/* ─── Selection ─── */
+::selection { @apply bg-brand-200/50 text-brand-950; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Component layer
+   ═══════════════════════════════════════════════════════════════ */
 @layer components {
+
+  /* ─── Card system ─── */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+    @apply bg-white rounded-2xl border border-slate-200/80 p-6
+           shadow-card;
   }
   .card-hover {
-    @apply card transition-all duration-200 hover:shadow-md hover:border-slate-300;
+    @apply card
+           transition-all duration-200 ease-out
+           hover:shadow-card-hover hover:border-slate-300/80
+           hover:-translate-y-[1px];
   }
 
+  /* ─── Stat cards ─── */
   .stat-card {
-    @apply card flex flex-col gap-1;
+    @apply card flex flex-col gap-2 relative overflow-hidden;
   }
   .stat-value {
-    @apply text-2xl font-bold text-slate-900;
+    @apply text-[1.75rem] font-bold tracking-tight text-slate-900 leading-none;
   }
   .stat-label {
-    @apply text-sm font-medium text-slate-500;
+    @apply text-[0.8125rem] font-medium text-slate-500 leading-tight;
   }
 
+  /* ─── Badge ─── */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-[0.6875rem]
+           font-semibold leading-tight tracking-wide uppercase;
   }
 
+  /* ─── Buttons ─── */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-blue-600 text-white font-medium rounded-lg
-           hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed
-           transition-colors duration-150;
+           bg-brand-600 text-white text-sm font-semibold rounded-xl
+           shadow-sm
+           hover:bg-brand-700 hover:shadow-md
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+           active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           transition-all duration-150 ease-out;
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-white text-slate-700 font-medium rounded-lg border border-slate-300
-           hover:bg-slate-50 focus:ring-2 focus:ring-slate-500 focus:ring-offset-2
-           transition-colors duration-150;
+           bg-white text-slate-700 text-sm font-semibold rounded-xl
+           border border-slate-200 shadow-sm
+           hover:bg-slate-50 hover:border-slate-300 hover:shadow
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2
+           active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-all duration-150 ease-out;
   }
 
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-red-600 text-white font-medium rounded-lg
-           hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2
-           transition-colors duration-150;
+           bg-red-600 text-white text-sm font-semibold rounded-xl
+           shadow-sm
+           hover:bg-red-700 hover:shadow-md
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2
+           active:scale-[0.98]
+           transition-all duration-150 ease-out;
   }
 
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2
+           text-slate-600 text-sm font-medium rounded-xl
+           hover:bg-slate-100 hover:text-slate-900
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2
+           active:scale-[0.98]
+           transition-all duration-150 ease-out;
+  }
+
+  /* ─── Form inputs ─── */
   .input-field {
-    @apply w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg
-           text-sm placeholder:text-slate-400
-           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-           transition-colors duration-150;
+    @apply w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl
+           text-sm text-slate-800 placeholder:text-slate-400
+           shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400
+           transition-all duration-150;
+  }
+  .input-field:hover:not(:focus) {
+    @apply border-slate-300;
+  }
+
+  /* ─── Table styles ─── */
+  .table-header {
+    @apply text-left py-3 px-4 text-[0.6875rem] font-semibold text-slate-500
+           uppercase tracking-wider bg-slate-50/80;
+  }
+  .table-cell {
+    @apply py-3 px-4 text-sm text-slate-700;
+  }
+  .table-row {
+    @apply border-b border-slate-100 transition-colors hover:bg-slate-50/60;
+  }
+
+  /* ─── Section heading ─── */
+  .section-title {
+    @apply text-[0.8125rem] font-semibold text-slate-900 tracking-tight;
+  }
+
+  /* ─── Page heading ─── */
+  .page-title {
+    @apply text-2xl font-bold text-slate-900 tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-[0.8125rem] text-slate-500 mt-1;
+  }
+
+  /* ─── Modal overlay ─── */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center
+           bg-slate-900/40 backdrop-blur-sm;
+  }
+  .modal-panel {
+    @apply bg-white rounded-2xl shadow-modal w-full max-w-md mx-4 p-6
+           animate-slide-up;
+  }
+
+  /* ─── Empty states ─── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-12 text-center;
+  }
+  .empty-state-icon {
+    @apply h-12 w-12 text-slate-300 mb-3;
+  }
+  .empty-state-text {
+    @apply text-sm text-slate-500 max-w-xs;
   }
 }
 
-/* ─── Animations ─── */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0;
-  }
+/* ═══════════════════════════════════════════════════════════════
+   Gauge strokes
+   ═══════════════════════════════════════════════════════════════ */
+.gauge-bg       { stroke: #e2e8f0; }
+.gauge-low      { stroke: #10b981; }
+.gauge-medium   { stroke: #f59e0b; }
+.gauge-high     { stroke: #f97316; }
+.gauge-critical { stroke: #ef4444; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Utility overrides
+   ═══════════════════════════════════════════════════════════════ */
+.skeleton {
+  @apply bg-slate-200 rounded-lg animate-shimmer bg-shimmer;
 }
 
-.animate-pulse-ring {
-  animation: pulse-ring 2s ease-in-out infinite;
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2;
 }
 
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-@keyframes slide-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-.animate-slide-in {
-  animation: slide-in 0.2s ease-out;
-}
-
-/* ─── Gauge ─── */
-.gauge-bg {
-  stroke: #e2e8f0;
-}
-.gauge-low {
-  stroke: #22c55e;
-}
-.gauge-medium {
-  stroke: #eab308;
-}
-.gauge-high {
-  stroke: #f97316;
-}
-.gauge-critical {
-  stroke: #ef4444;
-}
+.recharts-surface:focus { outline: none; }
