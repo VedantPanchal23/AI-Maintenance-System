@@ -19,6 +19,12 @@ class EquipmentType(str, PyEnum):
     PUMP = "pump"
     ELECTRIC_MOTOR = "electric_motor"
     HVAC_CHILLER = "hvac_chiller"
+    CNC_MILL = "cnc_mill"
+    HYDRAULIC_PRESS = "hydraulic_press"
+    INJECTION_MOLDER = "injection_molder"
+    CONVEYOR = "conveyor"
+    COMPRESSOR = "compressor"
+    MOTOR = "motor"
 
 
 class EquipmentStatus(str, PyEnum):

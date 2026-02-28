@@ -67,6 +67,7 @@ class Alert(Base, TimestampMixin, TenantMixin):
 
     # Relationships
     equipment = relationship("Equipment", back_populates="alerts")
+    prediction = relationship("Prediction", lazy="noload")
 
 
 class MaintenanceLog(Base, TimestampMixin, TenantMixin):
