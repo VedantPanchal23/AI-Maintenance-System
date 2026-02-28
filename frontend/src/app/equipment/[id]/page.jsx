@@ -13,6 +13,8 @@ import {
   BoltIcon,
   CpuChipIcon,
   ExclamationTriangleIcon,
+  SignalIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 
 export default function EquipmentDetailPage() {
@@ -27,14 +29,20 @@ export default function EquipmentDetailPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [eqRes, sensorRes, predRes] = await Promise.all([
-          equipmentAPI.get(params.id),
+        const eqRes = await equipmentAPI.get(params.id);
+        setEquipment(eqRes.data);
+        const [sensorRes, predRes] = await Promise.allSettled([
           sensorAPI.query(params.id, { limit: 100 }),
           predictionAPI.history(params.id, { limit: 20 }),
         ]);
-        setEquipment(eqRes.data);
-        setSensorData(sensorRes.data.items || sensorRes.data || []);
-        setPredictions(predRes.data.items || predRes.data || []);
+        if (sensorRes.status === "fulfilled") {
+          const sd = sensorRes.value.data;
+          setSensorData(sd.items || sd || []);
+        }
+        if (predRes.status === "fulfilled") {
+          const pd = predRes.value.data;
+          setPredictions(pd.items || pd || []);
+        }
       } catch (err) {
         console.error("Failed to load equipment:", err);
       } finally {
@@ -47,27 +55,21 @@ export default function EquipmentDetailPage() {
   const handlePredict = async () => {
     setPredicting(true);
     try {
-      // Get latest sensor reading for this equipment
       let sensorPayload = {};
       try {
         const { data: latest } = await sensorAPI.latest(params.id);
         sensorPayload = {
-          air_temperature: latest.air_temperature || 300,
-          process_temperature: latest.process_temperature || 310,
-          rotational_speed: latest.rotational_speed || 1500,
-          torque: latest.torque || 40,
-          tool_wear: latest.tool_wear || 100,
-          vibration: latest.vibration || 5.0,
+          air_temperature: latest.air_temperature ?? 300,
+          process_temperature: latest.process_temperature ?? 310,
+          rotational_speed: latest.rotational_speed ?? 1500,
+          torque: latest.torque ?? 40,
+          tool_wear: latest.tool_wear ?? 100,
+          vibration: latest.vibration ?? 5.0,
         };
       } catch {
-        // Use defaults if no sensor data available
         sensorPayload = {
-          air_temperature: 300,
-          process_temperature: 310,
-          rotational_speed: 1500,
-          torque: 40,
-          tool_wear: 100,
-          vibration: 5.0,
+          air_temperature: 300, process_temperature: 310,
+          rotational_speed: 1500, torque: 40, tool_wear: 100, vibration: 5.0,
         };
       }
       const { data } = await predictionAPI.predict(params.id, sensorPayload);
@@ -82,8 +84,9 @@ export default function EquipmentDetailPage() {
   if (loading) return <PageSpinner />;
   if (!equipment) {
     return (
-      <div className="card text-center py-12">
-        <p className="text-slate-500">Equipment not found</p>
+      <div className="card empty-state py-16">
+        <CpuChipIcon className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+        <p className="font-medium text-slate-500">Equipment not found</p>
       </div>
     );
   }
@@ -91,101 +94,93 @@ export default function EquipmentDetailPage() {
   const latestPred = predictions[0];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-lg hover:bg-slate-100"
+          className="self-start p-2 rounded-xl hover:bg-slate-100 transition-colors"
         >
-          <ArrowLeftIcon className="h-5 w-5 text-slate-500" />
+          <ArrowLeftIcon className="h-5 w-5 text-slate-400" />
         </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">
-            {equipment.name}
-          </h1>
-          <p className="text-sm text-slate-500">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="page-title truncate">{equipment.name}</h1>
+            <StatusBadge status={equipment.status || "operational"} />
+          </div>
+          <p className="page-subtitle">
             {equipment.equipment_type?.replace(/_/g, " ")} •{" "}
-            {equipment.location || "—"}
+            {equipment.location || "No location set"}
           </p>
         </div>
-        <StatusBadge status={equipment.status || "operational"} />
         <button
           onClick={handlePredict}
           disabled={predicting}
-          className="btn-primary"
+          className="btn-primary shrink-0"
         >
+          <BoltIcon className="h-4 w-4" />
           {predicting ? "Analyzing..." : "Run Prediction"}
         </button>
       </div>
 
       {/* Overview cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Equipment Info */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
-            Equipment Details
-          </h3>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Type</dt>
-              <dd className="font-medium capitalize">
-                {equipment.equipment_type?.replace(/_/g, " ")}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Model</dt>
-              <dd className="font-medium">{equipment.model || "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Serial</dt>
-              <dd className="font-medium">{equipment.serial_number || "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Installed</dt>
-              <dd className="font-medium">
-                {formatDate(equipment.installation_date)}
-              </dd>
-            </div>
+          <div className="flex items-center gap-2 mb-4">
+            <CpuChipIcon className="h-4 w-4 text-brand-500" />
+            <h3 className="section-title">Equipment Details</h3>
+          </div>
+          <dl className="space-y-3 text-sm">
+            {[
+              ["Type", equipment.equipment_type?.replace(/_/g, " ")],
+              ["Model", equipment.model_number],
+              ["Serial", equipment.serial_number],
+              ["Installed", formatDate(equipment.installation_date)],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between items-center">
+                <dt className="text-slate-400">{label}</dt>
+                <dd className="font-medium text-slate-700 capitalize">{value || "—"}</dd>
+              </div>
+            ))}
           </dl>
         </div>
 
         {/* Risk Gauge */}
         <div className="card flex flex-col items-center justify-center">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
-            Current Risk Level
-          </h3>
+          <h3 className="section-title mb-4">Current Risk Level</h3>
           {latestPred ? (
             <>
-              <div className="relative">
-                <RiskGauge
-                  value={(latestPred.failure_probability || 0) * 100}
-                  size={140}
-                  label="Failure Risk"
-                />
-              </div>
-              <div className="mt-3 space-y-1 text-center">
+              <RiskGauge
+                value={(latestPred.failure_probability || 0) * 100}
+                size={140}
+                label="Failure Risk"
+              />
+              <div className="mt-4 space-y-1.5 text-center">
                 <RiskBadge
                   level={latestPred.risk_level}
                   probability={latestPred.failure_probability}
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-2xs text-slate-400">
                   Type: {latestPred.failure_type?.replace(/_/g, " ") || "—"}
                 </p>
               </div>
             </>
           ) : (
-            <p className="text-sm text-slate-400">No prediction data</p>
+            <div className="empty-state py-6">
+              <p className="text-sm text-slate-400">No prediction data</p>
+            </div>
           )}
         </div>
 
         {/* Latest Sensor Reading */}
         <div className="card">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">
-            Latest Sensor Data
-          </h3>
+          <div className="flex items-center gap-2 mb-4">
+            <SignalIcon className="h-4 w-4 text-cyan-500" />
+            <h3 className="section-title">Latest Sensor Data</h3>
+          </div>
           {sensorData.length > 0 ? (
-            <dl className="space-y-2 text-sm">
+            <dl className="space-y-3 text-sm">
               {[
                 ["Air Temp", "air_temperature", "K"],
                 ["Process Temp", "process_temperature", "K"],
@@ -194,9 +189,9 @@ export default function EquipmentDetailPage() {
                 ["Tool Wear", "tool_wear", "min"],
                 ["Vibration", "vibration", "mm/s"],
               ].map(([label, key, unit]) => (
-                <div key={key} className="flex justify-between">
-                  <dt className="text-slate-500">{label}</dt>
-                  <dd className="font-medium">
+                <div key={key} className="flex justify-between items-center">
+                  <dt className="text-slate-400">{label}</dt>
+                  <dd className="font-medium text-slate-700 tabular-nums">
                     {sensorData[sensorData.length - 1]?.[key] !== undefined
                       ? `${Number(sensorData[sensorData.length - 1][key]).toFixed(1)} ${unit}`
                       : "—"}
@@ -205,75 +200,56 @@ export default function EquipmentDetailPage() {
               ))}
             </dl>
           ) : (
-            <p className="text-sm text-slate-400">No sensor data</p>
+            <div className="empty-state py-6">
+              <p className="text-sm text-slate-400">No sensor data</p>
+            </div>
           )}
         </div>
       </div>
 
       {/* Sensor Charts */}
       <div className="card">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2.5 mb-4">
           <BoltIcon className="h-5 w-5 text-cyan-500" />
-          <h2 className="text-sm font-semibold text-slate-900">
-            Sensor History
-          </h2>
+          <h2 className="section-title">Sensor History</h2>
         </div>
         <SensorChart
           data={sensorData}
-          sensors={[
-            "air_temperature",
-            "process_temperature",
-            "rotational_speed",
-            "torque",
-          ]}
+          sensors={["air_temperature", "process_temperature", "rotational_speed", "torque"]}
           height={320}
         />
       </div>
 
       {/* Prediction History */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">
-          Prediction History
-        </h2>
+        <div className="flex items-center gap-2.5 mb-4">
+          <ClockIcon className="h-5 w-5 text-violet-500" />
+          <h2 className="section-title">Prediction History</h2>
+        </div>
         {predictions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-5">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 text-slate-500 font-medium">
-                    Time
-                  </th>
-                  <th className="text-left py-2 text-slate-500 font-medium">
-                    Risk
-                  </th>
-                  <th className="text-left py-2 text-slate-500 font-medium">
-                    Probability
-                  </th>
-                  <th className="text-left py-2 text-slate-500 font-medium">
-                    Failure Type
-                  </th>
-                  <th className="text-left py-2 text-slate-500 font-medium">
-                    Confidence
-                  </th>
+                <tr>
+                  <th className="table-header pl-5">Time</th>
+                  <th className="table-header">Risk</th>
+                  <th className="table-header">Probability</th>
+                  <th className="table-header">Failure Type</th>
+                  <th className="table-header pr-5">Confidence</th>
                 </tr>
               </thead>
               <tbody>
                 {predictions.map((pred, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-slate-100 hover:bg-slate-50"
-                  >
-                    <td className="py-2">{formatDate(pred.created_at)}</td>
-                    <td className="py-2">
-                      <RiskBadge level={pred.risk_level} />
-                    </td>
-                    <td className="py-2">
+                  <tr key={pred.id || idx} className="table-row">
+                    <td className="table-cell pl-5 text-slate-500">{formatDate(pred.timestamp)}</td>
+                    <td className="table-cell"><RiskBadge level={pred.risk_level} /></td>
+                    <td className="table-cell font-medium tabular-nums">
                       {((pred.failure_probability || 0) * 100).toFixed(1)}%
                     </td>
-                    <td className="py-2 capitalize">
+                    <td className="table-cell capitalize text-slate-600">
                       {pred.failure_type?.replace(/_/g, " ") || "—"}
                     </td>
-                    <td className="py-2">
+                    <td className="table-cell pr-5 font-medium tabular-nums">
                       {((pred.confidence || 0) * 100).toFixed(1)}%
                     </td>
                   </tr>
@@ -282,9 +258,9 @@ export default function EquipmentDetailPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-slate-400 text-center py-6">
-            No predictions yet. Click &quot;Run Prediction&quot; above.
-          </p>
+          <div className="empty-state py-8">
+            <p className="text-sm text-slate-400">No predictions yet. Click &quot;Run Prediction&quot; above.</p>
+          </div>
         )}
       </div>
     </div>

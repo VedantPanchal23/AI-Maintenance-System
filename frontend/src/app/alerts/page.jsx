@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAlertStore } from "@/lib/store";
 import AlertCard from "@/components/AlertCard";
 import { PageSpinner } from "@/components/Loading";
-import { FunnelIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { FunnelIcon, XMarkIcon, BellSlashIcon } from "@heroicons/react/24/outline";
 
 export default function AlertsPage() {
   const {
@@ -46,10 +46,10 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Alerts</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="page-title">Alerts</h1>
+        <p className="page-subtitle">
           Equipment failure alerts and maintenance notifications
         </p>
       </div>
@@ -78,7 +78,7 @@ export default function AlertsPage() {
           <option value="acknowledged">Acknowledged</option>
           <option value="resolved">Resolved</option>
         </select>
-        <span className="text-xs text-slate-400 ml-auto">
+        <span className="text-2xs text-slate-400 font-medium ml-auto">
           {filtered.length} alert{filtered.length !== 1 ? "s" : ""}
         </span>
       </div>
@@ -98,26 +98,28 @@ export default function AlertsPage() {
           ))}
         </div>
       ) : (
-        <div className="card text-center py-12">
-          <p className="text-sm text-slate-500">
+        <div className="card empty-state py-14">
+          <BellSlashIcon className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-500">
             {severityFilter !== "all" || statusFilter !== "all"
               ? "No alerts matching your filters"
               : "No alerts found"}
           </p>
+          <p className="text-2xs text-slate-400 mt-1">Alerts will appear here when equipment anomalies are detected</p>
         </div>
       )}
 
       {/* ─── Resolve Modal ─── */}
       {resolveTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Resolve Alert</h2>
-              <button onClick={() => setResolveTarget(null)} className="p-1 hover:bg-slate-100 rounded">
-                <XMarkIcon className="h-5 w-5 text-slate-500" />
+        <div className="modal-overlay" onClick={() => setResolveTarget(null)}>
+          <div className="modal-panel w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-slate-800">Resolve Alert</h2>
+              <button onClick={() => setResolveTarget(null)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                <XMarkIcon className="h-5 w-5 text-slate-400" />
               </button>
             </div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Resolution Notes (optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Resolution Notes (optional)</label>
             <textarea
               value={resolveNotes}
               onChange={(e) => setResolveNotes(e.target.value)}
@@ -125,8 +127,8 @@ export default function AlertsPage() {
               className="input-field w-full"
               placeholder="Describe what was done…"
             />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setResolveTarget(null)} className="btn-secondary text-sm py-2 px-4">Cancel</button>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setResolveTarget(null)} className="btn-ghost text-sm py-2 px-4">Cancel</button>
               <button onClick={confirmResolve} disabled={resolveLoading} className="btn-primary text-sm py-2 px-4">
                 {resolveLoading ? "Resolving…" : "Resolve"}
               </button>
