@@ -1,16 +1,29 @@
 """
 Comprehensive API Test Script
 Tests all endpoints end-to-end against a running server.
+
+Set these environment variables before running:
+    TEST_ADMIN_EMAIL       — Admin user email
+    TEST_ADMIN_PASSWORD    — Admin user password
+    TEST_ENGINEER_EMAIL    — (optional) Engineer user email
+    TEST_ENGINEER_PASSWORD — (optional) Engineer user password
+    TEST_API_BASE          — (optional) API base URL, default http://localhost:8000
 """
 
 import json
+import os
 import random
 import sys
 import time
 import requests
 
-BASE = "http://localhost:8000"
+BASE = os.environ.get("TEST_API_BASE", "http://localhost:8000")
 API = f"{BASE}/api/v1"
+
+ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", "")
+ENGINEER_EMAIL = os.environ.get("TEST_ENGINEER_EMAIL", "")
+ENGINEER_PASSWORD = os.environ.get("TEST_ENGINEER_PASSWORD", "")
 
 passed = 0
 failed = 0
@@ -42,6 +55,10 @@ print("=" * 60)
 print("API Integration Test Suite")
 print("=" * 60)
 
+if not ADMIN_EMAIL or not ADMIN_PASSWORD:
+    print("\n✗ Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD env vars to run tests.")
+    sys.exit(1)
+
 # ── 1. Health Check ──────────────────────────────────────────
 print("\n1. Health Check")
 r = requests.get(f"{BASE}/health")
@@ -52,8 +69,8 @@ print("\n2. Authentication")
 
 # Login with admin
 r = requests.post(f"{API}/auth/login", json={
-    "email": "admin@zydus-pharma.com",
-    "password": "admin123456"
+    "email": ADMIN_EMAIL,
+    "password": ADMIN_PASSWORD
 })
 test("POST /auth/login (admin)", r)
 admin_token = None
@@ -64,17 +81,19 @@ if r.status_code == 200:
     refresh_tok = tokens["refresh_token"]
     print(f"    Token type: {tokens['token_type']}, expires_in: {tokens['expires_in']}s")
 
-# Login with engineer
-r = requests.post(f"{API}/auth/login", json={
-    "email": "engineer@zydus-pharma.com",
-    "password": "engineer123456"
-})
-test("POST /auth/login (engineer)", r)
-engineer_token = r.json()["access_token"] if r.status_code == 200 else None
+# Login with engineer (if configured)
+engineer_token = None
+if ENGINEER_EMAIL and ENGINEER_PASSWORD:
+    r = requests.post(f"{API}/auth/login", json={
+        "email": ENGINEER_EMAIL,
+        "password": ENGINEER_PASSWORD
+    })
+    test("POST /auth/login (engineer)", r)
+    engineer_token = r.json()["access_token"] if r.status_code == 200 else None
 
 # Bad credentials
 r = requests.post(f"{API}/auth/login", json={
-    "email": "admin@zydus-pharma.com",
+    "email": ADMIN_EMAIL,
     "password": "wrongpassword"
 })
 test("POST /auth/login (bad creds) -> 401", r, 401)

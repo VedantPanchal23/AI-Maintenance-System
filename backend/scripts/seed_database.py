@@ -1,13 +1,23 @@
 """
-Database Seeder — Populates initial data for development/demo.
+Database Seeder — Initial setup for first deployment.
 
-Creates:
-- Default organization
-- Admin and engineer users
-- Sample equipment (4 types)
+Creates the first organization, admin user, and equipment.
+All credentials are read from environment variables — nothing is hardcoded.
+
+Environment Variables Required:
+    SEED_ORG_NAME          — Organization name
+    SEED_ORG_SLUG          — URL-safe org slug
+    SEED_ADMIN_EMAIL       — Admin user email
+    SEED_ADMIN_PASSWORD    — Admin user password (min 10 chars)
+    SEED_ADMIN_NAME        — Admin full name
+    SEED_ENGINEER_EMAIL    — (optional) Engineer user email
+    SEED_ENGINEER_PASSWORD — (optional) Engineer user password
+    SEED_ENGINEER_NAME     — (optional) Engineer full name
 """
 
 import asyncio
+import os
+import sys
 import uuid
 from datetime import datetime, timezone
 
@@ -26,112 +36,33 @@ from app.db.models.alert import Alert, MaintenanceLog  # noqa: F401
 settings = get_settings()
 
 
-DEMO_EQUIPMENT = [
-    {
-        "name": "Air Compressor AC-001",
-        "equipment_type": EquipmentType.AIR_COMPRESSOR,
-        "location": "Building A - Production Floor",
-        "manufacturer": "Atlas Copco",
-        "model_number": "GA 37+",
-        "serial_number": "AC-2024-001",
-        "rated_power_kw": 37.0,
-        "max_rpm": 1500,
-    },
-    {
-        "name": "Air Compressor AC-002",
-        "equipment_type": EquipmentType.AIR_COMPRESSOR,
-        "location": "Building A - Utility Room",
-        "manufacturer": "Ingersoll Rand",
-        "model_number": "R-Series 45",
-        "serial_number": "AC-2024-002",
-        "rated_power_kw": 45.0,
-        "max_rpm": 1800,
-    },
-    {
-        "name": "Centrifugal Pump P-001",
-        "equipment_type": EquipmentType.PUMP,
-        "location": "Building B - Water Treatment",
-        "manufacturer": "Grundfos",
-        "model_number": "NB 50-200",
-        "serial_number": "PU-2024-001",
-        "rated_power_kw": 15.0,
-        "max_rpm": 2900,
-    },
-    {
-        "name": "Transfer Pump P-002",
-        "equipment_type": EquipmentType.PUMP,
-        "location": "Building B - Chemical Processing",
-        "manufacturer": "KSB",
-        "model_number": "Etanorm 50-160",
-        "serial_number": "PU-2024-002",
-        "rated_power_kw": 11.0,
-        "max_rpm": 2900,
-    },
-    {
-        "name": "Electric Motor EM-001",
-        "equipment_type": EquipmentType.ELECTRIC_MOTOR,
-        "location": "Building A - Line 1",
-        "manufacturer": "Siemens",
-        "model_number": "1LE1 Series",
-        "serial_number": "EM-2024-001",
-        "rated_power_kw": 22.0,
-        "max_rpm": 1800,
-    },
-    {
-        "name": "Electric Motor EM-002",
-        "equipment_type": EquipmentType.ELECTRIC_MOTOR,
-        "location": "Building A - Line 2",
-        "manufacturer": "ABB",
-        "model_number": "M3BP 200MLA",
-        "serial_number": "EM-2024-002",
-        "rated_power_kw": 30.0,
-        "max_rpm": 1500,
-    },
-    {
-        "name": "HVAC Chiller CH-001",
-        "equipment_type": EquipmentType.HVAC_CHILLER,
-        "location": "Building C - HVAC Plant Room",
-        "manufacturer": "Carrier",
-        "model_number": "30XA 252",
-        "serial_number": "CH-2024-001",
-        "rated_power_kw": 85.0,
-        "max_rpm": 1200,
-    },
-    {
-        "name": "HVAC Chiller CH-002",
-        "equipment_type": EquipmentType.HVAC_CHILLER,
-        "location": "Building D - Clean Room HVAC",
-        "manufacturer": "Trane",
-        "model_number": "RTAF 300",
-        "serial_number": "CH-2024-002",
-        "rated_power_kw": 100.0,
-        "max_rpm": 1200,
-    },
-    {
-        "name": "Air Compressor AC-003",
-        "equipment_type": EquipmentType.AIR_COMPRESSOR,
-        "location": "Building D - Packaging Area",
-        "manufacturer": "Kaeser",
-        "model_number": "ASD 40 S",
-        "serial_number": "AC-2024-003",
-        "rated_power_kw": 22.0,
-        "max_rpm": 1500,
-    },
-    {
-        "name": "Booster Pump P-003",
-        "equipment_type": EquipmentType.PUMP,
-        "location": "Building C - Boiler Room",
-        "manufacturer": "Wilo",
-        "model_number": "CronoBloc BL",
-        "serial_number": "PU-2024-003",
-        "rated_power_kw": 7.5,
-        "max_rpm": 2900,
-    },
-]
+def _require_env(key: str) -> str:
+    """Read a required env var or exit with an error."""
+    val = os.environ.get(key, "").strip()
+    if not val:
+        print(f"✗ Missing required environment variable: {key}")
+        sys.exit(1)
+    return val
 
 
 async def seed_database():
-    """Seed the database with demo data."""
+    """Seed the database with initial organization and admin user from env vars."""
+
+    # ── Read configuration from env ──
+    org_name = _require_env("SEED_ORG_NAME")
+    org_slug = _require_env("SEED_ORG_SLUG")
+    admin_email = _require_env("SEED_ADMIN_EMAIL")
+    admin_password = _require_env("SEED_ADMIN_PASSWORD")
+    admin_name = _require_env("SEED_ADMIN_NAME")
+
+    if len(admin_password) < 10:
+        print("✗ SEED_ADMIN_PASSWORD must be at least 10 characters.")
+        sys.exit(1)
+
+    engineer_email = os.environ.get("SEED_ENGINEER_EMAIL", "").strip()
+    engineer_password = os.environ.get("SEED_ENGINEER_PASSWORD", "").strip()
+    engineer_name = os.environ.get("SEED_ENGINEER_NAME", "").strip()
+
     engine = create_async_engine(settings.DATABASE_URL)
 
     # Create tables
@@ -143,20 +74,20 @@ async def seed_database():
     async with async_session() as session:
         # ── Idempotency check: skip if org already exists ──
         existing = await session.execute(
-            select(Organization).where(Organization.slug == "zydus-pharma-oncology")
+            select(Organization).where(Organization.slug == org_slug)
         )
         if existing.scalar_one_or_none():
             await engine.dispose()
-            print("✓ Database already seeded — nothing to do.")
+            print(f"✓ Organization '{org_slug}' already exists — nothing to do.")
             return
 
         # Create organization
         org = Organization(
-            name="Zydus Pharma Oncology Pvt. Ltd.",
-            slug="zydus-pharma-oncology",
-            description="Pharmaceutical manufacturing — oncology division",
-            subscription_tier="enterprise",
-            max_equipment=100,
+            name=org_name,
+            slug=org_slug,
+            description=os.environ.get("SEED_ORG_DESCRIPTION", ""),
+            subscription_tier=os.environ.get("SEED_ORG_TIER", "enterprise"),
+            max_equipment=int(os.environ.get("SEED_ORG_MAX_EQUIPMENT", "100")),
         )
         session.add(org)
         await session.flush()
@@ -164,41 +95,38 @@ async def seed_database():
         # Create admin user
         admin = User(
             organization_id=org.id,
-            email="admin@zydus-pharma.com",
-            hashed_password=hash_password("admin123456"),
-            full_name="System Administrator",
+            email=admin_email,
+            hashed_password=hash_password(admin_password),
+            full_name=admin_name,
             role=UserRole.ADMIN,
         )
         session.add(admin)
 
-        # Create engineer user
-        engineer = User(
-            organization_id=org.id,
-            email="engineer@zydus-pharma.com",
-            hashed_password=hash_password("engineer123456"),
-            full_name="Maintenance Engineer",
-            role=UserRole.ENGINEER,
-        )
-        session.add(engineer)
-
-        # Create equipment
-        for eq_data in DEMO_EQUIPMENT:
-            equipment = Equipment(
+        # Optionally create engineer user
+        if engineer_email and engineer_password and engineer_name:
+            if len(engineer_password) < 10:
+                print("✗ SEED_ENGINEER_PASSWORD must be at least 10 characters.")
+                sys.exit(1)
+            engineer = User(
                 organization_id=org.id,
-                operating_hours=float(uuid.uuid4().int % 10000),
-                **eq_data,
+                email=engineer_email,
+                hashed_password=hash_password(engineer_password),
+                full_name=engineer_name,
+                role=UserRole.ENGINEER,
             )
-            session.add(equipment)
+            session.add(engineer)
 
         await session.commit()
 
     await engine.dispose()
 
     print("✓ Database seeded successfully!")
-    print(f"  Organization: {org.name}")
-    print(f"  Admin: admin@zydus-pharma.com / admin123456")
-    print(f"  Engineer: engineer@zydus-pharma.com / engineer123456")
-    print(f"  Equipment: {len(DEMO_EQUIPMENT)} units created")
+    print(f"  Organization: {org_name} ({org_slug})")
+    print(f"  Admin user: {admin_email}")
+    if engineer_email:
+        print(f"  Engineer user: {engineer_email}")
+    print("  Passwords are NOT logged for security.")
+    print("  Register equipment via the API or admin dashboard.")
 
 
 if __name__ == "__main__":

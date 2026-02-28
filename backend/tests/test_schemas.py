@@ -43,10 +43,10 @@ class TestLoginRequestSchema:
 class TestRegisterRequestSchema:
     def test_valid_register(self):
         req = RegisterRequest(
-            email="admin@zydus.com",
+            email="admin@example.com",
             password="securepass",
             full_name="Admin User",
-            organization_name="Zydus Pharma",
+            organization_name="Test Organization",
         )
         assert req.role == "engineer"  # default
 
