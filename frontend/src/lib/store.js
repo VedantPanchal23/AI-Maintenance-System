@@ -70,14 +70,15 @@ export const useDashboardStore = create((set) => ({
 // ─── Equipment Store ───
 export const useEquipmentStore = create((set) => ({
   equipment: [],
+  total: 0,
   loading: false,
   error: null,
 
   fetchEquipment: async (params = {}) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
-      const { data } = await equipmentAPI.list(params);
-      set({ equipment: data.items || data, loading: false });
+      const { data } = await equipmentAPI.list({ page_size: 100, ...params });
+      set({ equipment: data.items || data, total: data.total || 0, loading: false });
     } catch (err) {
       set({ error: err.message, loading: false });
     }
@@ -93,7 +94,7 @@ export const useAlertStore = create((set) => ({
   fetchAlerts: async (params = {}) => {
     set({ loading: true });
     try {
-      const { data } = await alertAPI.list(params);
+      const { data } = await alertAPI.list({ page_size: 100, ...params });
       set({ alerts: data.items || data, loading: false });
     } catch {
       set({ loading: false });

@@ -151,7 +151,7 @@ export const sensorAPI = {
     api.post("/sensors/readings", data),
 
   ingestBatch: (readings) =>
-    api.post("/sensors/readings/batch", readings),
+    api.post("/sensors/readings/batch", { readings }),
 
   query: (equipmentId, params = {}) =>
     api.get("/sensors/readings", { params: { equipment_id: equipmentId, ...params } }),
@@ -242,8 +242,10 @@ export function createSensorWebSocket(onMessage, onError) {
 
   function connect() {
     if (disposed) return;
-    const url = token
-      ? `${wsBase}/ws/sensors?token=${encodeURIComponent(token)}`
+    // Re-read token on each connect attempt so reconnects use a refreshed token
+    const currentToken = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const url = currentToken
+      ? `${wsBase}/ws/sensors?token=${encodeURIComponent(currentToken)}`
       : `${wsBase}/ws/sensors`;
     ws = new WebSocket(url);
 
