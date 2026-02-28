@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { mlAdminAPI } from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 import { PageSpinner } from "@/components/Loading";
 import {
   BeakerIcon,
   PlayIcon,
   CheckCircleIcon,
   XCircleIcon,
+  ShieldExclamationIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 
 const ALGORITHMS = [
@@ -16,33 +19,46 @@ const ALGORITHMS = [
     name: "Random Forest",
     desc: "Ensemble of decision trees with bagging",
     device: "CPU",
+    color: "emerald",
   },
   {
     key: "xgboost",
     name: "XGBoost",
     desc: "Gradient-boosted trees with regularization",
     device: "CPU",
+    color: "blue",
   },
   {
     key: "lightgbm",
     name: "LightGBM",
     desc: "Leaf-wise gradient boosting",
     device: "CPU",
+    color: "amber",
   },
   {
     key: "neural_network_deep",
     name: "Deep Neural Network",
     desc: "PyTorch 4-layer DNN (256→128→64→32) with BatchNorm",
     device: "GPU (CUDA)",
+    color: "violet",
   },
 ];
 
+const colorMap = {
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600" },
+  blue:    { bg: "bg-blue-50",    icon: "text-blue-600" },
+  amber:   { bg: "bg-amber-50",   icon: "text-amber-600" },
+  violet:  { bg: "bg-violet-50",  icon: "text-violet-600" },
+};
+
 export default function MLAdminPage() {
+  const user = useAuthStore((s) => s.user);
   const [activeModel, setActiveModel] = useState(null);
   const [training, setTraining] = useState({});
   const [results, setResults] = useState({});
   const [loading, setLoading] = useState(true);
   const [trainingAll, setTrainingAll] = useState(false);
+  const [accessError, setAccessError] = useState(false);
 
   const refreshActiveModel = () => {
     mlAdminAPI.activeModel().then(({ data }) => setActiveModel(data)).catch(() => {});
@@ -52,7 +68,9 @@ export default function MLAdminPage() {
     mlAdminAPI
       .activeModel()
       .then(({ data }) => setActiveModel(data))
-      .catch(() => {})
+      .catch((err) => {
+        if (err.response?.status === 403) setAccessError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -100,33 +118,50 @@ export default function MLAdminPage() {
 
   if (loading) return <PageSpinner />;
 
+  if (accessError || (user && user.role !== "admin")) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+          <ShieldExclamationIcon className="h-8 w-8 text-slate-400" />
+        </div>
+        <h2 className="text-lg font-semibold text-slate-700">Access Restricted</h2>
+        <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
+          ML model management requires administrator privileges. Contact your
+          organization admin to request access.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">ML Models</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="page-title">ML Models</h1>
+          <p className="page-subtitle">
             Train, manage, and deploy machine learning models
           </p>
         </div>
-        <button onClick={handleTrainAll} disabled={isAnyTraining} className="btn-primary">
-          <PlayIcon className="h-4 w-4" />
+        <button onClick={handleTrainAll} disabled={isAnyTraining} className="btn-primary shrink-0">
+          <SparklesIcon className="h-4 w-4" />
           {trainingAll ? "Training All…" : "Train All Models"}
         </button>
       </div>
 
       {/* Active model info */}
       {activeModel && (
-        <div className="card bg-blue-50 border-blue-200">
+        <div className="card !bg-brand-50 !border-brand-200/60">
           <div className="flex items-center gap-3">
-            <CheckCircleIcon className="h-6 w-6 text-blue-600" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-100">
+              <CheckCircleIcon className="h-5 w-5 text-brand-600" />
+            </div>
             <div>
-              <p className="text-sm font-semibold text-blue-900">
+              <p className="text-sm font-semibold text-brand-900">
                 Active Model: {activeModel.algorithm}
               </p>
-              <p className="text-xs text-blue-600">
-                Version: {activeModel.version} | F1:{" "}
-                {((activeModel.metrics?.f1 || 0) * 100).toFixed(1)}% | AUC:{" "}
+              <p className="text-2xs text-brand-600 font-medium">
+                Version: {activeModel.version} · F1:{" "}
+                {((activeModel.metrics?.f1 || 0) * 100).toFixed(1)}% · AUC:{" "}
                 {((activeModel.metrics?.auc_roc || 0) * 100).toFixed(1)}%
               </p>
             </div>
@@ -135,24 +170,25 @@ export default function MLAdminPage() {
       )}
 
       {/* Algorithm cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {ALGORITHMS.map((algo) => {
           const result = results[algo.key];
           const isTraining = training[algo.key];
+          const colors = colorMap[algo.color];
 
           return (
             <div key={algo.key} className="card">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
-                    <BeakerIcon className="h-5 w-5 text-purple-600" />
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colors.bg}`}>
+                    <BeakerIcon className={`h-5 w-5 ${colors.icon}`} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
+                    <h3 className="text-[0.8125rem] font-semibold text-slate-800">
                       {algo.name}
                     </h3>
-                    <p className="text-xs text-slate-500">{algo.desc}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-2xs text-slate-400 leading-relaxed">{algo.desc}</p>
+                    <p className="text-2xs text-slate-400 mt-0.5">
                       Device: {algo.device}
                     </p>
                   </div>
@@ -160,11 +196,11 @@ export default function MLAdminPage() {
                 <button
                   onClick={() => handleTrain(algo.key)}
                   disabled={isAnyTraining}
-                  className="btn-secondary text-xs py-1.5"
+                  className="btn-ghost text-xs py-1.5 shrink-0"
                 >
                   {isTraining ? (
-                    <span className="flex items-center gap-1">
-                      <span className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-3 w-3 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
                       Training...
                     </span>
                   ) : (
@@ -176,42 +212,31 @@ export default function MLAdminPage() {
                 </button>
               </div>
 
-              {/* Result */}
               {result && (
-                <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <div className="mt-4 p-3.5 rounded-xl bg-surface-50 border border-slate-100">
                   {result.error ? (
-                    <div className="flex items-center gap-2 text-sm text-red-600">
+                    <div className="flex items-center gap-2 text-sm text-red-500 font-medium">
                       <XCircleIcon className="h-4 w-4" />
                       {result.error}
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-green-700">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium">
                         <CheckCircleIcon className="h-4 w-4" />
                         Training complete!
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <span className="text-slate-500">F1 Score</span>
-                          <p className="font-semibold">
-                            {((result.metrics?.f1 || 0) * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">AUC-ROC</span>
-                          <p className="font-semibold">
-                            {((result.metrics?.auc_roc || 0) * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">Recall</span>
-                          <p className="font-semibold">
-                            {((result.metrics?.recall || 0) * 100).toFixed(1)}%
-                          </p>
-                        </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[["F1 Score", result.metrics?.f1], ["AUC-ROC", result.metrics?.auc_roc], ["Recall", result.metrics?.recall]].map(([label, val]) => (
+                          <div key={label}>
+                            <span className="text-2xs text-slate-400">{label}</span>
+                            <p className="text-sm font-bold text-slate-700 tabular-nums">
+                              {((val || 0) * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-xs text-slate-500">
-                        Duration: {result.training_duration_seconds}s |
+                      <p className="text-2xs text-slate-400">
+                        Duration: {result.training_duration_seconds}s ·
                         Device: {result.device || "CPU"}
                       </p>
                     </div>

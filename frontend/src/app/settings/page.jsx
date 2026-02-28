@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
+import {
+  UserCircleIcon,
+  ServerStackIcon,
+  BellIcon,
+} from "@heroicons/react/24/outline";
 
 const PREF_KEYS = [
   "critical_failure_alerts",
@@ -65,93 +70,81 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">
           System configuration and user preferences
         </p>
       </div>
 
       {/* Profile */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">Profile</h2>
-        <dl className="space-y-3 text-sm max-w-md">
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Name</dt>
-            <dd className="font-medium">{user?.full_name || "—"}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Email</dt>
-            <dd className="font-medium">{user?.email || "—"}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Role</dt>
-            <dd className="font-medium capitalize">{user?.role || "—"}</dd>
-          </div>
+        <div className="flex items-center gap-2 mb-5">
+          <UserCircleIcon className="h-5 w-5 text-brand-500" />
+          <h2 className="section-title">Profile</h2>
+        </div>
+        <dl className="space-y-3.5 text-sm max-w-md">
+          {[["Name", user?.full_name], ["Email", user?.email], ["Role", user?.role]].map(([label, value]) => (
+            <div key={label} className="flex justify-between items-center">
+              <dt className="text-slate-400">{label}</dt>
+              <dd className="font-medium text-slate-700 capitalize">{value || "—"}</dd>
+            </div>
+          ))}
         </dl>
       </div>
 
-      {/* System Info — live from health endpoint */}
+      {/* System Info */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">
-          System Information
-        </h2>
-        <dl className="space-y-3 text-sm max-w-md">
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Platform Version</dt>
-            <dd className="font-medium">
-              {systemInfo?.version || "1.0.0"}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Backend</dt>
-            <dd className="font-medium">
-              {systemInfo ? `FastAPI + Python (${systemInfo.environment || "unknown"})` : "FastAPI + Python 3.11"}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">ML Framework</dt>
-            <dd className="font-medium">PyTorch + XGBoost + LightGBM</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">GPU</dt>
-            <dd className="font-medium">
-              {systemInfo?.gpu || "NVIDIA RTX 3050 6GB (CUDA 12.1)"}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Database</dt>
-            <dd className="font-medium">
-              {systemInfo?.database === "connected"
-                ? "PostgreSQL — Connected"
-                : systemInfo?.database === "disconnected"
-                ? "PostgreSQL — Disconnected"
-                : "PostgreSQL"}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Organization</dt>
-            <dd className="font-medium">Zydus Pharma Oncology Pvt. Ltd.</dd>
-          </div>
+        <div className="flex items-center gap-2 mb-5">
+          <ServerStackIcon className="h-5 w-5 text-slate-500" />
+          <h2 className="section-title">System Information</h2>
+        </div>
+        <dl className="space-y-3.5 text-sm max-w-md">
+          {[
+            ["Platform Version", systemInfo?.version || "1.0.0"],
+            ["Backend", systemInfo ? `FastAPI + Python (${systemInfo.environment || "unknown"})` : "—"],
+            ["ML Framework", "PyTorch + XGBoost + LightGBM"],
+            ["GPU", systemInfo?.gpu || "—"],
+            ["Database", systemInfo?.database === "connected" ? "PostgreSQL — Connected" : systemInfo?.database === "disconnected" ? "PostgreSQL — Disconnected" : "PostgreSQL"],
+            ["Organization", user?.organization_name || "—"],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between items-center">
+              <dt className="text-slate-400">{label}</dt>
+              <dd className="font-medium text-slate-700">{value}</dd>
+            </div>
+          ))}
         </dl>
       </div>
 
-      {/* Notification Preferences — persisted to localStorage */}
+      {/* Notification Preferences */}
       <div className="card">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">
-          Notification Preferences
-        </h2>
+        <div className="flex items-center gap-2 mb-5">
+          <BellIcon className="h-5 w-5 text-amber-500" />
+          <h2 className="section-title">Notification Preferences</h2>
+        </div>
         <div className="space-y-3 max-w-md">
           {PREF_KEYS.map((key) => (
-            <label key={key} className="flex items-center gap-3 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!prefs[key]}
-                onChange={() => togglePref(key)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-slate-700">{PREF_LABELS[key]}</span>
+            <label
+              key={key}
+              className="flex items-center justify-between py-2 px-3 -mx-3 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+            >
+              <span className="text-sm text-slate-600">{PREF_LABELS[key]}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!prefs[key]}
+                onClick={() => togglePref(key)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
+                  prefs[key] ? "bg-brand-600" : "bg-slate-200"
+                }`}
+              >
+                <span
+                  className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    prefs[key] ? "translate-x-[22px]" : "translate-x-[3px]"
+                  }`}
+                />
+              </button>
             </label>
           ))}
         </div>

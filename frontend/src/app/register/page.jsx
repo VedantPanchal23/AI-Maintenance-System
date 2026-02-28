@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authAPI } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import Link from "next/link";
 import {
-  CpuChipIcon,
   ShieldCheckIcon,
   ChartBarIcon,
+  CpuChipIcon,
   BellAlertIcon,
   BoltIcon,
   ExclamationCircleIcon,
@@ -20,26 +21,35 @@ const FEATURES = [
   { icon: BoltIcon, label: "GPU-Accelerated" },
 ];
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    organization_name: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const update = (field) => (e) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await authAPI.register(form);
+      // Auto-login after registration
+      await login(form.email, form.password);
       router.push("/dashboard");
     } catch (err) {
       setError(
         err.response?.data?.error?.message ||
-        err.response?.data?.detail ||
-        "Invalid email or password"
+          err.response?.data?.detail ||
+          "Registration failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -89,7 +99,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — login form */}
+      {/* Right — registration form */}
       <div className="flex flex-1 items-center justify-center bg-surface-50 p-8">
         <div className="w-full max-w-sm animate-fade-in">
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
@@ -101,9 +111,11 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">Welcome back</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
+            Create Account
+          </h2>
           <p className="text-sm text-slate-500 mb-8">
-            Enter your credentials to access the dashboard
+            Register your organization to get started
           </p>
 
           {error && (
@@ -113,15 +125,29 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={form.full_name}
+                onChange={update("full_name")}
+                className="input-field"
+                placeholder="John Doe"
+                required
+                autoComplete="name"
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Email
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={form.email}
+                onChange={update("email")}
                 className="input-field"
                 placeholder="your@email.com"
                 required
@@ -130,41 +156,56 @@ export default function LoginPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Organization Name
+              </label>
+              <input
+                type="text"
+                value={form.organization_name}
+                onChange={update("organization_name")}
+                className="input-field"
+                placeholder="Acme Pharmaceuticals"
+                required
+                autoComplete="organization"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Password
               </label>
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={form.password}
+                onChange={update("password")}
                 className="input-field"
-                placeholder="Enter your password"
+                placeholder="Min. 6 characters"
                 required
-                autoComplete="current-password"
+                minLength={6}
+                autoComplete="new-password"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center"
+              className="btn-primary w-full justify-center !mt-6"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Signing in...
+                  Creating account...
                 </span>
               ) : (
-                "Sign In"
+                "Create Account"
               )}
             </button>
           </form>
 
           <p className="mt-8 text-center text-sm text-slate-500">
-            Don&apos;t have an account?{" "}
+            Already have an account?{" "}
             <Link
-              href="/register"
+              href="/login"
               className="font-medium text-brand-600 hover:text-brand-700 transition-colors"
             >
-              Create one
+              Sign in
             </Link>
           </p>
         </div>
