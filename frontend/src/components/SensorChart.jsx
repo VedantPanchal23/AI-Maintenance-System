@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { SignalIcon } from "@heroicons/react/24/outline";
 
 const SENSOR_COLORS = {
   air_temperature: "#3b82f6",
@@ -20,6 +21,29 @@ const SENSOR_COLORS = {
   vibration: "#06b6d4",
   power_consumption: "#ec4899",
 };
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl bg-white px-4 py-3 shadow-elevated border border-slate-200/60">
+      <p className="text-2xs text-slate-500 mb-1.5">
+        {new Date(label).toLocaleString("en-IN")}
+      </p>
+      {payload.map((entry) => (
+        <div key={entry.dataKey} className="flex items-center gap-2 text-xs">
+          <span
+            className="h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-slate-600 capitalize">{entry.name}</span>
+          <span className="ml-auto font-semibold tabular-nums text-slate-900">
+            {typeof entry.value === "number" ? entry.value.toFixed(1) : entry.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Real-time sensor chart for a single equipment
@@ -32,9 +56,10 @@ export default function SensorChart({
   if (!data.length) {
     return (
       <div
-        className="flex items-center justify-center text-sm text-slate-400"
+        className="flex flex-col items-center justify-center gap-2 text-sm text-slate-400"
         style={{ height }}
       >
+        <SignalIcon className="h-8 w-8 text-slate-300" />
         No sensor data available
       </div>
     );
@@ -43,11 +68,12 @@ export default function SensorChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <CartesianGrid vertical={false} stroke="#f1f5f9" />
         <XAxis
           dataKey="timestamp"
-          tick={{ fontSize: 11 }}
-          stroke="#94a3b8"
+          tick={{ fontSize: 11, fill: "#94a3b8" }}
+          axisLine={false}
+          tickLine={false}
           tickFormatter={(v) =>
             new Date(v).toLocaleTimeString("en-IN", {
               hour: "2-digit",
@@ -55,17 +81,18 @@ export default function SensorChart({
             })
           }
         />
-        <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
-        <Tooltip
-          contentStyle={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 12,
-          }}
-          labelFormatter={(v) => new Date(v).toLocaleString("en-IN")}
+        <YAxis
+          tick={{ fontSize: 11, fill: "#94a3b8" }}
+          axisLine={false}
+          tickLine={false}
+          width={45}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Tooltip content={<ChartTooltip />} />
+        <Legend
+          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+          iconType="circle"
+          iconSize={8}
+        />
         {sensors.map((key) => (
           <Line
             key={key}

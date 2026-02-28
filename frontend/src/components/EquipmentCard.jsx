@@ -22,26 +22,26 @@ export default function EquipmentCard({ equipment }) {
 
   return (
     <Link href={`/equipment/${id}`}>
-      <div className="card-hover cursor-pointer">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-              <CpuChipIcon className="h-5 w-5 text-blue-600" />
+      <div className="card group cursor-pointer transition-shadow hover:shadow-card-hover">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 shrink-0 transition-colors group-hover:bg-brand-100">
+              <CpuChipIcon className="h-5 w-5 text-brand-600" />
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">{name}</h3>
-              <p className="text-xs text-slate-500 capitalize">
-                {equipment_type?.replace(/_/g, " ")} • {location || "—"}
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-slate-900 truncate">{name}</h3>
+              <p className="text-xs text-slate-500 capitalize truncate">
+                {equipment_type?.replace(/_/g, " ")} &middot; {location || "\u2014"}
               </p>
             </div>
           </div>
           <StatusBadge status={status || "operational"} />
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-xs text-slate-500">Risk</p>
-            {latest_risk_score !== undefined ? (
+            <p className="text-2xs text-slate-400 uppercase tracking-wider mb-1">Risk</p>
+            {latest_risk_score != null ? (
               <RiskBadge
                 level={latest_risk_level || "low"}
                 probability={latest_risk_score}
@@ -51,9 +51,9 @@ export default function EquipmentCard({ equipment }) {
             )}
           </div>
           <div>
-            <p className="text-xs text-slate-500">Last Reading</p>
-            <p className="text-xs text-slate-700">
-              {last_reading_at ? formatDate(last_reading_at) : "—"}
+            <p className="text-2xs text-slate-400 uppercase tracking-wider mb-1">Last Reading</p>
+            <p className="text-xs text-slate-700 tabular-nums">
+              {last_reading_at ? formatDate(last_reading_at) : "\u2014"}
             </p>
           </div>
         </div>

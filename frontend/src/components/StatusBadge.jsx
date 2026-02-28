@@ -1,21 +1,21 @@
 import { cn } from "@/lib/utils";
 
 const severityStyles = {
-  critical: "bg-red-100 text-red-800 ring-1 ring-red-600/20",
-  high: "bg-orange-100 text-orange-800 ring-1 ring-orange-600/20",
-  medium: "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20",
-  low: "bg-green-100 text-green-800 ring-1 ring-green-600/20",
+  critical: "bg-red-50 text-red-700 ring-1 ring-red-600/10",
+  high: "bg-orange-50 text-orange-700 ring-1 ring-orange-600/10",
+  medium: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/10",
+  low: "bg-green-50 text-green-700 ring-1 ring-green-600/10",
 };
 
 const statusStyles = {
-  operational: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-  critical: "bg-red-100 text-red-800",
-  maintenance: "bg-blue-100 text-blue-800",
-  offline: "bg-gray-100 text-gray-800",
-  active: "bg-red-100 text-red-800",
-  acknowledged: "bg-yellow-100 text-yellow-800",
-  resolved: "bg-green-100 text-green-800",
+  operational: "bg-emerald-50 text-emerald-700",
+  warning: "bg-yellow-50 text-yellow-700",
+  critical: "bg-red-50 text-red-700",
+  maintenance: "bg-brand-50 text-brand-700",
+  offline: "bg-slate-100 text-slate-600",
+  active: "bg-red-50 text-red-700",
+  acknowledged: "bg-yellow-50 text-yellow-700",
+  resolved: "bg-emerald-50 text-emerald-700",
 };
 
 export function StatusBadge({ status, className }) {

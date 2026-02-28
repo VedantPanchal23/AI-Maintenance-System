@@ -4,8 +4,8 @@
  * Radial gauge for displaying risk / health percentage
  */
 export default function RiskGauge({ value = 0, size = 120, label = "Risk" }) {
-  // Auto-normalise: if caller passes 0–1 (API scale), convert to 0–100
-  const normalised = value > 0 && value <= 1 ? value * 100 : value;
+  // Expect value in 0–100 scale (caller should pre-multiply if needed)
+  const normalised = value;
   const radius = (size - 16) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(Math.max(normalised, 0), 100);
@@ -46,10 +46,10 @@ export default function RiskGauge({ value = 0, size = 120, label = "Risk" }) {
         className="absolute flex flex-col items-center justify-center"
         style={{ width: size, height: size }}
       >
-        <span className="text-xl font-bold text-slate-900">
+        <span className="text-xl font-bold text-slate-900 tabular-nums">
           {clamped.toFixed(0)}%
         </span>
-        <span className="text-xs text-slate-500">{label}</span>
+        <span className="text-2xs text-slate-400 uppercase tracking-wider">{label}</span>
       </div>
     </div>
   );
