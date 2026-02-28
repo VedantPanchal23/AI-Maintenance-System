@@ -97,6 +97,9 @@ async def sensor_stream(
 
     try:
         payload = decode_token(token)
+        if not payload:
+            await websocket.close(code=4003, reason="Invalid token")
+            return
         if payload.get("type") != "access":
             await websocket.close(code=4003, reason="Invalid token type")
             return

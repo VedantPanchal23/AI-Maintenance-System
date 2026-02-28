@@ -54,16 +54,27 @@ class DataPreprocessor:
         """
         Load and normalize the AI4I Predictive Maintenance dataset.
 
-        If no file path is provided, generates synthetic data
-        matching the AI4I distribution for development/demo.
+        A valid data file path is REQUIRED. The system does not generate
+        synthetic data — all ML training must use real sensor data.
         """
+        # Try explicit filepath first
         if filepath and Path(filepath).exists():
             logger.info("Loading AI4I dataset from %s", filepath)
             df = pd.read_csv(filepath)
             return self._normalize_ai4i(df)
 
-        logger.info("Generating synthetic AI4I-compatible dataset")
-        return self._generate_synthetic_data(n_samples=10000)
+        # Try default dataset location
+        default_path = self.data_dir / "ai4i2020.csv"
+        if default_path.exists():
+            logger.info("Loading AI4I dataset from default path: %s", default_path)
+            df = pd.read_csv(default_path)
+            return self._normalize_ai4i(df)
+
+        raise FileNotFoundError(
+            f"No dataset file found. Provide a valid filepath or place "
+            f"'ai4i2020.csv' in {self.data_dir}. "
+            f"Synthetic data generation is disabled in production."
+        )
 
     def _normalize_ai4i(self, df: pd.DataFrame) -> pd.DataFrame:
         """Map raw AI4I columns to standardized feature names."""

@@ -39,10 +39,22 @@ def _get_client_identifier(request: Request) -> str:
 
 # ── Limiter Instance ──────────────────────────────────────────
 _settings = get_settings()
+
+# Use Redis when available; fall back to in-memory for local dev without Redis
+_storage_uri = _settings.REDIS_URL
+try:
+    import redis as _redis_lib
+    _rc = _redis_lib.Redis.from_url(_storage_uri, socket_connect_timeout=1)
+    _rc.ping()
+    _rc.close()
+except Exception:
+    logger.warning("Redis not reachable at %s — rate limiter using in-memory storage", _storage_uri)
+    _storage_uri = "memory://"
+
 limiter = Limiter(
     key_func=_get_client_identifier,
     default_limits=["120/minute"],
-    storage_uri=_settings.REDIS_URL,  # Shared across workers via Redis
+    storage_uri=_storage_uri,
 )
 
 

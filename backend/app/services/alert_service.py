@@ -25,11 +25,9 @@ class AlertService:
     """
     Business logic for alert creation and management.
 
-    Determines severity based on risk thresholds:
-    - Critical: >= 0.8
-    - High: >= 0.7
-    - Medium: >= 0.5
-    - Low: < 0.5 (informational)
+    Determines severity based on configurable risk thresholds
+    from settings (ALERT_HIGH_RISK_THRESHOLD, ML_PREDICTION_THRESHOLD,
+    ALERT_MEDIUM_RISK_THRESHOLD).
     """
 
     def __init__(self, db: AsyncSession, organization_id: uuid.UUID):
@@ -117,7 +115,7 @@ class AlertService:
         """Map failure probability to alert severity."""
         if failure_probability >= settings.ALERT_HIGH_RISK_THRESHOLD:
             return AlertSeverity.CRITICAL
-        elif failure_probability >= 0.7:
+        elif failure_probability >= settings.ML_PREDICTION_THRESHOLD:
             return AlertSeverity.HIGH
         elif failure_probability >= settings.ALERT_MEDIUM_RISK_THRESHOLD:
             return AlertSeverity.MEDIUM
@@ -151,7 +149,7 @@ class AlertService:
                 port=settings.SMTP_PORT,
                 username=settings.SMTP_USER,
                 password=settings.SMTP_PASSWORD,
-                use_tls=True,
+                start_tls=True,
             )
 
             alert.email_sent = True
