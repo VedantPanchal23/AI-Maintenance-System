@@ -63,6 +63,12 @@ class EquipmentTypeEnum(str, Enum):
     PUMP = "pump"
     ELECTRIC_MOTOR = "electric_motor"
     HVAC_CHILLER = "hvac_chiller"
+    CNC_MILL = "cnc_mill"
+    HYDRAULIC_PRESS = "hydraulic_press"
+    INJECTION_MOLDER = "injection_molder"
+    CONVEYOR = "conveyor"
+    COMPRESSOR = "compressor"
+    MOTOR = "motor"
 
 
 class EquipmentStatusEnum(str, Enum):
@@ -115,6 +121,12 @@ class EquipmentResponse(BaseModel):
     organization_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+    # Computed fields for frontend convenience
+    latest_risk_score: Optional[float] = None
+    latest_risk_level: Optional[str] = None
+    last_reading_at: Optional[datetime] = None
+    last_maintenance_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True, "protected_namespaces": ()}
 
@@ -227,6 +239,9 @@ class AlertResponse(BaseModel):
     title: str
     message: str
     risk_score: Optional[float]
+    failure_probability: Optional[float] = None
+    failure_type: Optional[str] = None
+    equipment_name: Optional[str] = None
     email_sent: bool
     acknowledged_at: Optional[datetime]
     resolved_at: Optional[datetime]
@@ -273,6 +288,14 @@ class DashboardSummary(BaseModel):
     avg_risk_score: float
     equipment_health: List[EquipmentHealthSummary]
 
+    # Convenience fields for frontend stat cards & charts
+    healthy_equipment: int = 0
+    equipment_by_status: Dict[str, int] = {}
+    predictions_today: int = 0
+    alerts_this_week: int = 0
+    model_accuracy: Optional[float] = None
+    system_uptime: Optional[str] = None
+
 
 class MLModelInfo(BaseModel):
     model_config = {"protected_namespaces": ()}
@@ -308,6 +331,7 @@ class TrainingResultResponse(BaseModel):
     training_samples: int
     test_samples: int
     training_duration_seconds: float
+    device: str = "cpu"
 
 
 # ═══════════════════════════════════════════════════════════════

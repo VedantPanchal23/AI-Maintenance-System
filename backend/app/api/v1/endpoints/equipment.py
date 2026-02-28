@@ -10,6 +10,7 @@ DELETE /equipment/{id}      — Soft-delete equipment
 
 import logging
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
@@ -22,12 +23,56 @@ from app.api.v1.schemas import (
     EquipmentResponse,
     EquipmentUpdate,
 )
+from app.api.v1.endpoints.predictions import _compute_risk_level
 from app.core.exceptions import NotFoundException
+from app.db.models.alert import MaintenanceLog
 from app.db.models.equipment import Equipment, EquipmentStatus, EquipmentType
 from app.db.models.organization import User
+from app.db.models.prediction import Prediction
+from app.db.models.sensor import SensorReading
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+async def _enrich_equipment(db: AsyncSession, eq: Equipment) -> EquipmentResponse:
+    """Build EquipmentResponse with computed fields from related tables."""
+    data = EquipmentResponse.model_validate(eq)
+
+    # Latest prediction → risk score & level
+    pred_result = await db.execute(
+        select(Prediction.failure_probability, Prediction.failure_type)
+        .where(Prediction.equipment_id == eq.id)
+        .order_by(Prediction.timestamp.desc())
+        .limit(1)
+    )
+    pred_row = pred_result.first()
+    if pred_row:
+        prob = pred_row[0]
+        data.latest_risk_score = round(prob, 4)
+        data.latest_risk_level = _compute_risk_level(prob)
+
+    # Latest sensor reading timestamp
+    sr_result = await db.execute(
+        select(SensorReading.timestamp)
+        .where(SensorReading.equipment_id == eq.id)
+        .order_by(SensorReading.timestamp.desc())
+        .limit(1)
+    )
+    sr_row = sr_result.scalar_one_or_none()
+    if sr_row:
+        data.last_reading_at = sr_row
+
+    # Latest maintenance log
+    ml_result = await db.execute(
+        select(func.max(MaintenanceLog.completed_at))
+        .where(MaintenanceLog.equipment_id == eq.id)
+    )
+    ml_time = ml_result.scalar_one_or_none()
+    if ml_time:
+        data.last_maintenance_at = ml_time
+
+    return data
 
 
 @router.get("", response_model=EquipmentListResponse)
@@ -66,8 +111,10 @@ async def list_equipment(
     result = await db.execute(query)
     items = result.scalars().all()
 
+    enriched = [await _enrich_equipment(db, eq) for eq in items]
+
     return EquipmentListResponse(
-        items=[EquipmentResponse.model_validate(eq) for eq in items],
+        items=enriched,
         total=total,
         page=pagination.page,
         page_size=pagination.page_size,
@@ -98,7 +145,7 @@ async def create_equipment(
     await db.flush()
 
     logger.info("Created equipment: %s (id=%s)", equipment.name, equipment.id)
-    return EquipmentResponse.model_validate(equipment)
+    return await _enrich_equipment(db, equipment)
 
 
 @router.get("/{equipment_id}", response_model=EquipmentResponse)
@@ -119,7 +166,7 @@ async def get_equipment(
     if not equipment:
         raise NotFoundException("Equipment", equipment_id)
 
-    return EquipmentResponse.model_validate(equipment)
+    return await _enrich_equipment(db, equipment)
 
 
 @router.put("/{equipment_id}", response_model=EquipmentResponse)
@@ -151,7 +198,7 @@ async def update_equipment(
 
     await db.flush()
     logger.info("Updated equipment: %s", equipment_id)
-    return EquipmentResponse.model_validate(equipment)
+    return await _enrich_equipment(db, equipment)
 
 
 @router.delete("/{equipment_id}", status_code=204)

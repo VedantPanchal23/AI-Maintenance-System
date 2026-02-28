@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import PaginationDep, get_current_user, get_db
 from app.api.v1.schemas import AlertListResponse, AlertResponse, AlertUpdateRequest
@@ -23,6 +24,24 @@ from app.db.models.organization import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _build_alert_response(alert: Alert) -> AlertResponse:
+    """Build AlertResponse with computed fields from relationships."""
+    data = AlertResponse.model_validate(alert)
+
+    # Populate equipment name from loaded relationship
+    if alert.equipment:
+        data.equipment_name = alert.equipment.name
+
+    # Populate failure details from linked prediction
+    if hasattr(alert, "prediction") and alert.prediction:
+        pred = alert.prediction
+        data.failure_probability = pred.failure_probability
+        ft = pred.failure_type
+        data.failure_type = ft.value if hasattr(ft, "value") else ft
+
+    return data
 
 
 @router.get("", response_model=AlertListResponse)
@@ -35,26 +54,32 @@ async def list_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """List all alerts for the current tenant."""
-    query = select(Alert).where(Alert.organization_id == user.organization_id)
+    base_filter = [Alert.organization_id == user.organization_id]
 
     if severity:
-        query = query.where(Alert.severity == AlertSeverity(severity))
+        base_filter.append(Alert.severity == AlertSeverity(severity))
     if status:
-        query = query.where(Alert.status == AlertStatus(status))
+        base_filter.append(Alert.status == AlertStatus(status))
     if equipment_id:
-        query = query.where(Alert.equipment_id == equipment_id)
+        base_filter.append(Alert.equipment_id == equipment_id)
 
-    count_query = select(func.count()).select_from(query.subquery())
+    count_query = select(func.count(Alert.id)).where(*base_filter)
     total = (await db.execute(count_query)).scalar()
 
-    query = query.order_by(Alert.created_at.desc())
-    query = query.offset(pagination.offset).limit(pagination.page_size)
+    query = (
+        select(Alert)
+        .where(*base_filter)
+        .options(selectinload(Alert.equipment), selectinload(Alert.prediction))
+        .order_by(Alert.created_at.desc())
+        .offset(pagination.offset)
+        .limit(pagination.page_size)
+    )
 
     result = await db.execute(query)
     items = result.scalars().all()
 
     return AlertListResponse(
-        items=[AlertResponse.model_validate(a) for a in items],
+        items=[_build_alert_response(a) for a in items],
         total=total,
         page=pagination.page,
         page_size=pagination.page_size,
@@ -73,11 +98,12 @@ async def list_active_alerts(
             Alert.organization_id == user.organization_id,
             Alert.status == AlertStatus.ACTIVE,
         )
+        .options(selectinload(Alert.equipment), selectinload(Alert.prediction))
         .order_by(Alert.created_at.desc())
         .limit(100)
     )
     alerts = result.scalars().all()
-    return [AlertResponse.model_validate(a) for a in alerts]
+    return [_build_alert_response(a) for a in alerts]
 
 
 @router.get("/{alert_id}", response_model=AlertResponse)
@@ -88,17 +114,19 @@ async def get_alert(
 ):
     """Get alert details by ID."""
     result = await db.execute(
-        select(Alert).where(
+        select(Alert)
+        .where(
             Alert.id == alert_id,
             Alert.organization_id == user.organization_id,
         )
+        .options(selectinload(Alert.equipment), selectinload(Alert.prediction))
     )
     alert = result.scalar_one_or_none()
 
     if not alert:
         raise NotFoundException("Alert", alert_id)
 
-    return AlertResponse.model_validate(alert)
+    return _build_alert_response(alert)
 
 
 @router.put("/{alert_id}", response_model=AlertResponse)
@@ -110,10 +138,12 @@ async def update_alert(
 ):
     """Update alert status (acknowledge, resolve, dismiss)."""
     result = await db.execute(
-        select(Alert).where(
+        select(Alert)
+        .where(
             Alert.id == alert_id,
             Alert.organization_id == user.organization_id,
         )
+        .options(selectinload(Alert.equipment), selectinload(Alert.prediction))
     )
     alert = result.scalar_one_or_none()
 
@@ -135,4 +165,4 @@ async def update_alert(
     await db.flush()
     logger.info("Alert %s updated to %s", alert_id, request.status)
 
-    return AlertResponse.model_validate(alert)
+    return _build_alert_response(alert)
