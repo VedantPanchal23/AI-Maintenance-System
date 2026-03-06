@@ -99,10 +99,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         asyncio.create_task(sim_engine.start())
         logger.info("Simulation engine started with %d equipment", len(sim_engine.simulators))
 
+    # Initialize Redis
+    from app.db.redis import init_redis
+    await init_redis()
+
     yield
 
     # ── Shutdown ──
     logger.info("Shutting down %s", settings.APP_NAME)
+
+    # Close Redis
+    from app.db.redis import close_redis
+    await close_redis()
 
     # Stop simulation engine if running
     sim = getattr(app.state, "simulation_engine", None)

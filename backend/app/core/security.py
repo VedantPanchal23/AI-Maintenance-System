@@ -2,6 +2,7 @@
 Security Utilities — JWT, Password Hashing, Token Management
 """
 
+import uuid as _uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -41,6 +42,7 @@ def create_access_token(
         "exp": expire,
         "type": "access",
         "iat": datetime.now(timezone.utc),
+        "jti": _uuid.uuid4().hex,
     })
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -53,6 +55,7 @@ def create_refresh_token(data: dict[str, Any]) -> str:
         "exp": expire,
         "type": "refresh",
         "iat": datetime.now(timezone.utc),
+        "jti": _uuid.uuid4().hex,
     })
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 

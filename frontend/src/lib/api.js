@@ -119,6 +119,8 @@ export const authAPI = {
     api.post("/auth/refresh", { refresh_token: refreshToken }),
 
   logout: () => {
+    // Best-effort server-side token revocation before clearing local tokens
+    api.post("/auth/logout").catch(() => {});
     clearTokens();
   },
 };

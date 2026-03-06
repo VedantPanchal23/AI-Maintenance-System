@@ -2,12 +2,13 @@
 WebSocket Handler
 
 Real-time sensor data and prediction streaming to connected clients.
+Supports per-connection equipment subscriptions for filtered delivery.
 """
 
 import asyncio
 import json
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from jose import JWTError
@@ -20,36 +21,56 @@ router = APIRouter()
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections."""
+    """Manages active WebSocket connections with per-client subscriptions."""
 
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        # Map WebSocket → set of subscribed equipment IDs (empty = all)
+        self._connections: Dict[WebSocket, Set[str]] = {}
+
+    @property
+    def active_connections(self) -> list[WebSocket]:
+        return list(self._connections.keys())
 
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self._connections[websocket] = set()  # empty = receive all
         logger.info(
             "WebSocket connected: %s (total=%d)",
             websocket.client.host if websocket.client else "unknown",
-            len(self.active_connections),
+            len(self._connections),
         )
 
     def disconnect(self, websocket: WebSocket) -> None:
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        self._connections.pop(websocket, None)
         logger.info(
-            "WebSocket disconnected (total=%d)", len(self.active_connections)
+            "WebSocket disconnected (total=%d)", len(self._connections)
         )
 
-    async def broadcast(self, message: dict) -> None:
-        """Send message to all connected clients."""
+    def subscribe(self, websocket: WebSocket, equipment_ids: list[str]) -> None:
+        """Set the equipment subscription filter for a connection."""
+        if websocket in self._connections:
+            self._connections[websocket] = set(equipment_ids)
+
+    def unsubscribe_all(self, websocket: WebSocket) -> None:
+        """Clear subscription filter (receive all messages)."""
+        if websocket in self._connections:
+            self._connections[websocket] = set()
+
+    async def broadcast(self, message: dict, equipment_id: Optional[str] = None) -> None:
+        """Send message to clients subscribed to the given equipment (or all)."""
         disconnected = []
-        for connection in self.active_connections:
+        for ws, subscriptions in self._connections.items():
             try:
-                if connection.client_state == WebSocketState.CONNECTED:
-                    await connection.send_json(message)
+                if ws.client_state != WebSocketState.CONNECTED:
+                    disconnected.append(ws)
+                    continue
+                # If client has no subscriptions, they receive everything.
+                # If they have subscriptions, only deliver matching equipment_id.
+                if subscriptions and equipment_id and equipment_id not in subscriptions:
+                    continue
+                await ws.send_json(message)
             except Exception:
-                disconnected.append(connection)
+                disconnected.append(ws)
 
         for conn in disconnected:
             self.disconnect(conn)
@@ -67,14 +88,15 @@ manager = ConnectionManager()
 
 async def broadcast_sensor_readings(readings: list) -> None:
     """
-    Callback for SimulationEngine – forwards sensor readings to all
-    connected WebSocket clients.
+    Callback for SimulationEngine – forwards sensor readings to
+    subscribed WebSocket clients, filtered by equipment_id.
     """
     for reading in readings:
-        await manager.broadcast({
-            "type": "sensor_reading",
-            "data": reading,
-        })
+        equipment_id = reading.get("equipment_id") if isinstance(reading, dict) else None
+        await manager.broadcast(
+            {"type": "sensor_reading", "data": reading},
+            equipment_id=str(equipment_id) if equipment_id else None,
+        )
 
 
 @router.websocket("/sensors")
@@ -89,6 +111,11 @@ async def sensor_stream(
     to authenticate. Unauthenticated connections are rejected with:
     - 4001 – missing token
     - 4003 – invalid / expired token
+
+    Client commands:
+    - {"type": "ping"} → {"type": "pong"}
+    - {"type": "subscribe", "equipment_ids": ["id1", "id2"]} → filters delivery
+    - {"type": "unsubscribe"} → receive all messages again
     """
     # --- JWT authentication ---
     if not token:
@@ -111,19 +138,29 @@ async def sensor_stream(
 
     try:
         while True:
-            # Keep connection alive, listen for client messages
             data = await websocket.receive_text()
-            message = json.loads(data)
+            try:
+                message = json.loads(data)
+            except json.JSONDecodeError:
+                continue
 
-            # Handle client commands
-            if message.get("type") == "ping":
+            msg_type = message.get("type")
+
+            if msg_type == "ping":
                 await manager.send_to(websocket, {"type": "pong"})
-            elif message.get("type") == "subscribe":
+
+            elif msg_type == "subscribe":
                 equipment_ids = message.get("equipment_ids", [])
-                await manager.send_to(websocket, {
-                    "type": "subscribed",
-                    "equipment_ids": equipment_ids,
-                })
+                if isinstance(equipment_ids, list):
+                    manager.subscribe(websocket, [str(eid) for eid in equipment_ids])
+                    await manager.send_to(websocket, {
+                        "type": "subscribed",
+                        "equipment_ids": equipment_ids,
+                    })
+
+            elif msg_type == "unsubscribe":
+                manager.unsubscribe_all(websocket)
+                await manager.send_to(websocket, {"type": "unsubscribed"})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

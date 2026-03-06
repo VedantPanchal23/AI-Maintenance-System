@@ -32,6 +32,14 @@ from app.core.security import (
     verify_password,
 )
 from app.db.models.organization import Organization, User, UserRole
+from app.db.redis import (
+    add_token_to_blocklist,
+    clear_failed_logins,
+    get_lockout_ttl,
+    is_account_locked,
+    record_failed_login,
+    MAX_FAILED_ATTEMPTS,
+)
 from app.middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -118,6 +126,14 @@ async def login(
 ):
     """Authenticate user and return JWT tokens."""
 
+    # Check account lockout
+    if await is_account_locked(body.email):
+        ttl = await get_lockout_ttl(body.email)
+        raise UnauthorizedException(
+            f"Account temporarily locked due to {MAX_FAILED_ATTEMPTS} failed attempts. "
+            f"Try again in {ttl // 60 + 1} minutes."
+        )
+
     result = await db.execute(
         select(User)
         .join(Organization, User.organization_id == Organization.id)
@@ -130,7 +146,11 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(body.password, user.hashed_password):
+        await record_failed_login(body.email)
         raise UnauthorizedException("Invalid email or password")
+
+    # Successful login — clear any failed attempts
+    await clear_failed_logins(body.email)
 
     # Update last login
     user.last_login = datetime.now(timezone.utc)
@@ -186,6 +206,30 @@ async def refresh_token(
         token_type="bearer",
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
+
+
+@router.post("/logout", status_code=204)
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Logout — revoke the current access token by adding it to the blocklist."""
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        payload = decode_token(token)
+        if payload and payload.get("jti"):
+            # Calculate remaining TTL from the token's expiry
+            exp = payload.get("exp", 0)
+            now = int(datetime.now(timezone.utc).timestamp())
+            ttl = max(exp - now, 0)
+            if ttl > 0:
+                await add_token_to_blocklist(payload["jti"], ttl)
+                logger.info("User logged out: %s (token revoked)", current_user.email)
+
+    return None
 
 
 @router.get("/me", response_model=UserResponse)

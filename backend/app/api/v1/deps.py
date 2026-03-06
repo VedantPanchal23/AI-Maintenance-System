@@ -16,6 +16,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_token
+from app.db.redis import is_token_blocklisted
 from app.db.session import get_db
 from app.db.models.organization import User, UserRole
 
@@ -43,6 +44,11 @@ async def get_current_user(
 
     if payload.get("type") != "access":
         raise UnauthorizedException("Invalid token type")
+
+    # Check token blocklist (revoked tokens)
+    jti = payload.get("jti")
+    if jti and await is_token_blocklisted(jti):
+        raise UnauthorizedException("Token has been revoked")
 
     user_id = payload.get("sub")
     if not user_id:
