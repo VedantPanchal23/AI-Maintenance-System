@@ -81,6 +81,7 @@ async def predict_failure(
     prediction = Prediction(
         organization_id=user.organization_id,
         equipment_id=body.equipment_id,
+        model_id=model_service.model_info.get("db_id"),
         timestamp=now,
         failure_probability=prediction_result["failure_probability"],
         predicted_failure=prediction_result["predicted_failure"],

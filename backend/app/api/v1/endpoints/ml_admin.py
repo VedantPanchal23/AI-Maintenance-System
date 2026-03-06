@@ -9,10 +9,12 @@ GET  /ml/models/active   — Get currently active model info
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_admin, get_db
@@ -20,6 +22,7 @@ from app.api.v1.schemas import MLModelInfo, TrainModelRequest, TrainingResultRes
 from app.config import get_settings
 from app.core.exceptions import MLModelException
 from app.db.models.organization import User
+from app.db.models.prediction import MLModel, MLTrainingRun
 from app.ml.training import TrainingPipeline
 from app.middleware.rate_limit import limiter
 
@@ -34,6 +37,7 @@ async def train_model(
     request: Request,
     body: TrainModelRequest,
     user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger ML model training.
@@ -42,6 +46,7 @@ async def train_model(
     Returns training metrics and model path.
     """
     pipeline = TrainingPipeline()
+    started_at = datetime.now(timezone.utc)
 
     try:
         result = await asyncio.to_thread(
@@ -53,6 +58,12 @@ async def train_model(
     except Exception as e:
         logger.error("Training failed: %s", str(e))
         raise MLModelException(f"Training failed: {str(e)}")
+
+    # Persist trained model to ml_models table
+    ml_model = await _persist_model(db, result)
+    # Persist training run to ml_training_runs table
+    await _persist_training_run(db, result, ml_model.id, started_at)
+    await db.flush()
 
     logger.info(
         "Model trained: %s v%s (F1=%.4f)",
@@ -76,14 +87,24 @@ async def train_model(
 @router.post("/train-all")
 async def train_all_models(
     user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Train all configured algorithms and return comparative results."""
     pipeline = TrainingPipeline()
+    started_at = datetime.now(timezone.utc)
 
     try:
         results = await asyncio.to_thread(pipeline.train_all_models)
     except Exception as e:
         raise MLModelException(f"Training failed: {str(e)}")
+
+    # Persist each successful result to DB
+    for result in results:
+        if "metrics" not in result:
+            continue
+        ml_model = await _persist_model(db, result)
+        await _persist_training_run(db, result, ml_model.id, started_at)
+    await db.flush()
 
     return {
         "models_trained": len([r for r in results if "metrics" in r]),
@@ -100,8 +121,37 @@ class LoadModelRequest(BaseModel):
 @router.get("/models")
 async def list_models(
     user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ):
-    """List all saved model artifacts on disk."""
+    """List registered models from the database."""
+    result = await db.execute(
+        select(MLModel).order_by(MLModel.created_at.desc())
+    )
+    db_models = result.scalars().all()
+
+    if db_models:
+        return [
+            {
+                "id": str(m.id),
+                "name": m.name,
+                "algorithm": m.algorithm,
+                "version": m.version,
+                "model_path": m.model_path,
+                "is_active": m.is_active,
+                "is_default": m.is_default,
+                "accuracy": m.accuracy,
+                "precision": m.precision,
+                "recall": m.recall,
+                "f1_score": m.f1_score,
+                "auc_roc": m.auc_roc,
+                "training_samples": m.training_samples,
+                "training_duration_seconds": m.training_duration_seconds,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in db_models
+        ]
+
+    # Fallback: scan disk for models not yet registered in DB
     model_dir = Path(settings.ML_MODEL_DIR)
     if not model_dir.exists():
         return []
@@ -125,6 +175,7 @@ async def load_model(
     request: LoadModelRequest,
     fastapi_request: Request,
     user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Load a specific model artifact into the inference service."""
     # Prevent path traversal — resolve and verify within allowed directory
@@ -139,6 +190,14 @@ async def load_model(
         await model_service.load_model(str(requested_path))
     except FileNotFoundError:
         raise MLModelException(f"Model file not found: {request.model_path}")
+
+    # Link to DB record if available
+    result = await db.execute(
+        select(MLModel).where(MLModel.model_path == str(requested_path))
+    )
+    ml_model = result.scalar_one_or_none()
+    if ml_model:
+        model_service.model_info["db_id"] = ml_model.id
 
     return {
         "status": "loaded",
@@ -179,3 +238,70 @@ async def get_model_monitoring(
 
     monitor = get_model_monitor()
     return monitor.get_monitoring_report()
+
+
+# ── Helpers ──────────────────────────────────────────────────────
+
+async def _persist_model(
+    db: AsyncSession, result: dict
+) -> MLModel:
+    """Create an MLModel record from a training result dict."""
+    metrics = result["metrics"]
+
+    # Deactivate previous models of the same algorithm
+    await db.execute(
+        update(MLModel)
+        .where(MLModel.algorithm == result["algorithm"], MLModel.is_active.is_(True))
+        .values(is_active=False)
+    )
+
+    ml_model = MLModel(
+        name=f"{result['algorithm']}_{result['version']}",
+        version=result["version"],
+        algorithm=result["algorithm"],
+        model_path=result["model_path"],
+        is_active=True,
+        accuracy=metrics.get("accuracy"),
+        precision=metrics.get("precision"),
+        recall=metrics.get("recall"),
+        f1_score=metrics.get("f1"),
+        auc_roc=metrics.get("auc_roc"),
+        training_samples=result.get("training_samples"),
+        feature_columns=result.get("feature_columns"),
+        hyperparameters=result.get("hyperparameters"),
+        training_duration_seconds=result.get("training_duration_seconds"),
+    )
+    db.add(ml_model)
+    await db.flush()
+    return ml_model
+
+
+async def _persist_training_run(
+    db: AsyncSession,
+    result: dict,
+    model_id,
+    started_at: datetime,
+) -> MLTrainingRun:
+    """Create an MLTrainingRun record from a training result dict."""
+    metrics = result["metrics"]
+    serializable_metrics = {
+        k: v for k, v in metrics.items()
+        if k not in ("training_history", "confusion_matrix")
+    }
+
+    run = MLTrainingRun(
+        model_id=model_id,
+        algorithm=result["algorithm"],
+        status="completed",
+        started_at=started_at,
+        completed_at=datetime.now(timezone.utc),
+        metrics=serializable_metrics,
+        hyperparameters=result.get("hyperparameters"),
+        dataset_info={
+            "training_samples": result.get("training_samples"),
+            "test_samples": result.get("test_samples"),
+            "data_validation": result.get("data_validation"),
+        },
+    )
+    db.add(run)
+    return run

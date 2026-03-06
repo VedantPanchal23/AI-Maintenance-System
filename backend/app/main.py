@@ -47,6 +47,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         await model_service.load_default_model()
         logger.info("ML model loaded successfully")
+
+        # Link to DB record if available
+        try:
+            from app.db.models.prediction import MLModel
+            async with async_session_factory() as session:
+                from sqlalchemy import select as _sel
+                row = await session.execute(
+                    _sel(MLModel.id).where(
+                        MLModel.model_path == model_service.model_info.get("model_path")
+                    )
+                )
+                ml_id = row.scalar_one_or_none()
+                if ml_id:
+                    model_service.model_info["db_id"] = ml_id
+        except Exception:
+            pass  # DB linkage is non-critical at startup
     except Exception as e:
         logger.warning("ML model not available at startup: %s", str(e))
 
