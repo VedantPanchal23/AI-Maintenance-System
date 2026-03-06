@@ -23,7 +23,7 @@ from app.api.v1.schemas import (
     EquipmentResponse,
     EquipmentUpdate,
 )
-from app.api.v1.endpoints.predictions import _compute_risk_level
+from app.core.risk import compute_risk_level as _compute_risk_level
 from app.core.exceptions import NotFoundException
 from app.db.models.alert import MaintenanceLog
 from app.db.models.equipment import Equipment, EquipmentStatus, EquipmentType
@@ -75,6 +75,76 @@ async def _enrich_equipment(db: AsyncSession, eq: Equipment) -> EquipmentRespons
     return data
 
 
+async def _enrich_equipment_batch(db: AsyncSession, equipment_list: list) -> list[EquipmentResponse]:
+    """Batch-enrich equipment list to avoid N+1 queries."""
+    if not equipment_list:
+        return []
+
+    eq_ids = [eq.id for eq in equipment_list]
+
+    # Batch: latest prediction per equipment (window function)
+    from sqlalchemy import and_
+    pred_sub = (
+        select(
+            Prediction.equipment_id,
+            Prediction.failure_probability,
+            func.row_number().over(
+                partition_by=Prediction.equipment_id,
+                order_by=Prediction.timestamp.desc()
+            ).label("rn")
+        )
+        .where(Prediction.equipment_id.in_(eq_ids))
+        .subquery()
+    )
+    pred_result = await db.execute(
+        select(pred_sub.c.equipment_id, pred_sub.c.failure_probability)
+        .where(pred_sub.c.rn == 1)
+    )
+    pred_map = {row[0]: row[1] for row in pred_result.all()}
+
+    # Batch: latest sensor reading timestamp per equipment
+    sr_sub = (
+        select(
+            SensorReading.equipment_id,
+            func.max(SensorReading.timestamp).label("latest_ts")
+        )
+        .where(SensorReading.equipment_id.in_(eq_ids))
+        .group_by(SensorReading.equipment_id)
+    )
+    sr_result = await db.execute(sr_sub)
+    sr_map = {row[0]: row[1] for row in sr_result.all()}
+
+    # Batch: latest maintenance log per equipment
+    ml_sub = (
+        select(
+            MaintenanceLog.equipment_id,
+            func.max(MaintenanceLog.completed_at).label("latest_maint")
+        )
+        .where(MaintenanceLog.equipment_id.in_(eq_ids))
+        .group_by(MaintenanceLog.equipment_id)
+    )
+    ml_result = await db.execute(ml_sub)
+    ml_map = {row[0]: row[1] for row in ml_result.all()}
+
+    # Build responses
+    enriched = []
+    for eq in equipment_list:
+        data = EquipmentResponse.model_validate(eq)
+        prob = pred_map.get(eq.id)
+        if prob is not None:
+            data.latest_risk_score = round(prob, 4)
+            data.latest_risk_level = _compute_risk_level(prob)
+        sr_ts = sr_map.get(eq.id)
+        if sr_ts:
+            data.last_reading_at = sr_ts
+        ml_ts = ml_map.get(eq.id)
+        if ml_ts:
+            data.last_maintenance_at = ml_ts
+        enriched.append(data)
+
+    return enriched
+
+
 @router.get("", response_model=EquipmentListResponse)
 async def list_equipment(
     pagination: PaginationDep = Depends(),
@@ -94,11 +164,21 @@ async def list_equipment(
 
     # Apply filters
     if status:
-        query = query.where(Equipment.status == EquipmentStatus(status))
+        try:
+            query = query.where(Equipment.status == EquipmentStatus(status))
+        except ValueError:
+            from app.core.exceptions import BadRequestException
+            raise BadRequestException(f"Invalid status: {status}")
     if equipment_type:
-        query = query.where(Equipment.equipment_type == EquipmentType(equipment_type))
+        try:
+            query = query.where(Equipment.equipment_type == EquipmentType(equipment_type))
+        except ValueError:
+            from app.core.exceptions import BadRequestException
+            raise BadRequestException(f"Invalid equipment_type: {equipment_type}")
     if search:
-        query = query.where(Equipment.name.ilike(f"%{search}%"))
+        # Escape LIKE wildcards to prevent LIKE-injection
+        safe_search = search.replace("%", "\\%").replace("_", "\\_")
+        query = query.where(Equipment.name.ilike(f"%{safe_search}%"))
 
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
@@ -111,7 +191,7 @@ async def list_equipment(
     result = await db.execute(query)
     items = result.scalars().all()
 
-    enriched = [await _enrich_equipment(db, eq) for eq in items]
+    enriched = await _enrich_equipment_batch(db, items)
 
     return EquipmentListResponse(
         items=enriched,

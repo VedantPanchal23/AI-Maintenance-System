@@ -6,6 +6,7 @@ for local development. Production values MUST be set via .env or environment.
 """
 
 import logging
+import secrets
 import warnings
 from functools import lru_cache
 from typing import List, Optional
@@ -66,7 +67,7 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # ── JWT ──────────────────────────────────────────────────────
-    JWT_SECRET_KEY: str = ""
+    JWT_SECRET_KEY: str = secrets.token_urlsafe(48)
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -125,15 +126,15 @@ class Settings(BaseSettings):
         is_prod = self.APP_ENV in ("production", "staging")
 
         # JWT Secret validation
-        if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in _INSECURE_DEFAULTS:
+        if self.JWT_SECRET_KEY in _INSECURE_DEFAULTS:
             if is_prod:
                 raise ValueError(
-                    "CRITICAL: JWT_SECRET_KEY is missing or insecure. "
+                    "CRITICAL: JWT_SECRET_KEY is using an insecure default. "
                     "Set a strong secret via JWT_SECRET_KEY environment variable."
                 )
             else:
                 warnings.warn(
-                    "JWT_SECRET_KEY is empty or using an insecure default. "
+                    "JWT_SECRET_KEY is using an insecure default. "
                     "Set a strong secret via environment variable.",
                     stacklevel=2,
                 )

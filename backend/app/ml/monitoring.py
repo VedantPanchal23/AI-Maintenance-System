@@ -137,9 +137,10 @@ class ModelMonitor:
 
         # Set status based on drift
         drift = report["drift"]
-        if drift.get("psi", 0) > 0.25:
+        psi = drift.get("psi") or 0
+        if psi > 0.25:
             report["status"] = "critical_drift"
-        elif drift.get("psi", 0) > 0.1:
+        elif psi > 0.1:
             report["status"] = "warning_drift"
         elif report["confidence_stats"]["mean_confidence"] < 0.6:
             report["status"] = "low_confidence"

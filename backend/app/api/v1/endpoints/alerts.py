@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import PaginationDep, get_current_user, get_db
 from app.api.v1.schemas import AlertListResponse, AlertResponse, AlertUpdateRequest
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import BadRequestException, NotFoundException
 from app.db.models.alert import Alert, AlertSeverity, AlertStatus
 from app.db.models.organization import User
 
@@ -57,9 +57,15 @@ async def list_alerts(
     base_filter = [Alert.organization_id == user.organization_id]
 
     if severity:
-        base_filter.append(Alert.severity == AlertSeverity(severity))
+        try:
+            base_filter.append(Alert.severity == AlertSeverity(severity))
+        except ValueError:
+            raise BadRequestException(f"Invalid severity: {severity}")
     if status:
-        base_filter.append(Alert.status == AlertStatus(status))
+        try:
+            base_filter.append(Alert.status == AlertStatus(status))
+        except ValueError:
+            raise BadRequestException(f"Invalid status: {status}")
     if equipment_id:
         base_filter.append(Alert.equipment_id == equipment_id)
 

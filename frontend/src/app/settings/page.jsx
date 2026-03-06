@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
+import { analyticsAPI } from "@/lib/api";
 import {
   UserCircleIcon,
   ServerStackIcon,
@@ -53,11 +54,8 @@ export default function SettingsPage() {
 
   // Fetch live system info from /health
   useEffect(() => {
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/health`
-    )
-      .then((r) => r.json())
-      .then((data) => setSystemInfo(data))
+    analyticsAPI.systemHealth()
+      .then(({ data }) => setSystemInfo(data))
       .catch(() => {});
   }, []);
 

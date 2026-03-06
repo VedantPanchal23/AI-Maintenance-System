@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
-from app.api.v1.schemas import DashboardSummary, EquipmentHealthSummary
+from app.api.v1.schemas import DashboardSummary, EquipmentHealthSummary, RiskTrendPoint
 from app.db.models.alert import Alert, AlertStatus
 from app.db.models.equipment import Equipment, EquipmentStatus
 from app.db.models.prediction import Prediction, MLModel
@@ -131,11 +131,11 @@ async def get_dashboard_summary(
         predictions_today=await _count_predictions_today(db, org_id),
         alerts_this_week=await _count_alerts_this_week(db, org_id),
         model_accuracy=await _get_active_model_accuracy(request),
-        system_uptime="99.9%",
+        system_uptime=None,
     )
 
 
-@router.get("/equipment-health")
+@router.get("/equipment-health", response_model=list[EquipmentHealthSummary])
 async def get_equipment_health(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -150,15 +150,20 @@ async def get_equipment_health(
     )
     equipment_list = result.scalars().all()
 
+    # Batch alert count query to avoid N+1
+    alert_counts_result = await db.execute(
+        select(Alert.equipment_id, func.count(Alert.id))
+        .where(
+            Alert.organization_id == org_id,
+            Alert.status == AlertStatus.ACTIVE,
+        )
+        .group_by(Alert.equipment_id)
+    )
+    alert_map = {row[0]: row[1] for row in alert_counts_result.all()}
+
     health = []
     for eq in equipment_list:
-        alert_result = await db.execute(
-            select(func.count(Alert.id)).where(
-                Alert.equipment_id == eq.id,
-                Alert.status == AlertStatus.ACTIVE,
-            )
-        )
-        eq_alerts = alert_result.scalar() or 0
+        eq_alerts = alert_map.get(eq.id, 0)
 
         health.append(
             EquipmentHealthSummary(
@@ -216,7 +221,7 @@ async def _get_active_model_accuracy(request: Request) -> Optional[float]:
     return None
 
 
-@router.get("/trends")
+@router.get("/trends", response_model=list[RiskTrendPoint])
 async def get_risk_trends(
     equipment_id: Optional[uuid.UUID] = Query(None, description="Equipment ID (optional)"),
     hours: int = Query(default=24, ge=1, le=2160, description="Hours of history (max 90 days)"),

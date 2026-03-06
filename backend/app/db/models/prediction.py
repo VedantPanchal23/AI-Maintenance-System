@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +56,10 @@ class Prediction(Base, TenantMixin):
     # Relationships
     equipment = relationship("Equipment", back_populates="predictions")
     model = relationship("MLModel", back_populates="predictions")
+
+    __table_args__ = (
+        Index("ix_predictions_equip_time", "equipment_id", "timestamp"),
+    )
 
 
 class MLModel(Base, TimestampMixin):

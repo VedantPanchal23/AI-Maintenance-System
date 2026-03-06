@@ -15,7 +15,6 @@ import argparse
 import gzip
 import logging
 import os
-import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone

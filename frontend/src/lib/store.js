@@ -90,14 +90,15 @@ export const useAlertStore = create((set) => ({
   alerts: [],
   activeAlerts: [],
   loading: false,
+  error: null,
 
   fetchAlerts: async (params = {}) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const { data } = await alertAPI.list({ page_size: 100, ...params });
       set({ alerts: data.items || data, loading: false });
-    } catch {
-      set({ loading: false });
+    } catch (err) {
+      set({ error: err.message || "Failed to load alerts", loading: false });
     }
   },
 
@@ -105,8 +106,8 @@ export const useAlertStore = create((set) => ({
     try {
       const { data } = await alertAPI.active();
       set({ activeAlerts: data });
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to fetch active alerts:", err);
     }
   },
 

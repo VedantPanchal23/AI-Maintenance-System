@@ -44,7 +44,7 @@ class TestRegisterRequestSchema:
     def test_valid_register(self):
         req = RegisterRequest(
             email="admin@example.com",
-            password="securepass",
+            password="Secure1pass!",
             full_name="Admin User",
             organization_name="Test Organization",
         )
@@ -54,7 +54,7 @@ class TestRegisterRequestSchema:
         with pytest.raises(ValidationError):
             RegisterRequest(
                 email="x@test.com",
-                password="securepass",
+                password="Secure1pass!",
                 full_name="X",
                 organization_name="Org",
                 role="superuser",
@@ -64,7 +64,7 @@ class TestRegisterRequestSchema:
         for role in ("admin", "engineer", "viewer"):
             req = RegisterRequest(
                 email="x@test.com",
-                password="securepass",
+                password="Secure1pass!",
                 full_name="User",
                 organization_name="Org",
                 role=role,

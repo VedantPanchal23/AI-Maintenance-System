@@ -177,9 +177,9 @@ export default function RegisterPage() {
                 value={form.password}
                 onChange={update("password")}
                 className="input-field"
-                placeholder="Min. 6 characters"
+                placeholder="Min. 8 chars, upper, lower, digit, special"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
               />
             </div>

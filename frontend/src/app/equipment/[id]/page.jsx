@@ -24,7 +24,9 @@ export default function EquipmentDetailPage() {
   const [sensorData, setSensorData] = useState([]);
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [predicting, setPredicting] = useState(false);
+  const [predictError, setPredictError] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -44,7 +46,7 @@ export default function EquipmentDetailPage() {
           setPredictions(pd.items || pd || []);
         }
       } catch (err) {
-        console.error("Failed to load equipment:", err);
+        setError(err.message || "Failed to load equipment details");
       } finally {
         setLoading(false);
       }
@@ -75,13 +77,22 @@ export default function EquipmentDetailPage() {
       const { data } = await predictionAPI.predict(params.id, sensorPayload);
       setPredictions((prev) => [data, ...prev]);
     } catch (err) {
-      console.error("Prediction failed:", err);
+      setPredictError(err.message || "Prediction failed");
     } finally {
       setPredicting(false);
     }
   };
 
   if (loading) return <PageSpinner />;
+  if (error) {
+    return (
+      <div className="card empty-state py-16">
+        <ExclamationTriangleIcon className="h-10 w-10 text-red-300 mx-auto mb-3" />
+        <p className="font-medium text-slate-500">{error}</p>
+        <button onClick={() => router.back()} className="btn-secondary mt-4 text-sm">Go Back</button>
+      </div>
+    );
+  }
   if (!equipment) {
     return (
       <div className="card empty-state py-16">
@@ -114,7 +125,7 @@ export default function EquipmentDetailPage() {
           </p>
         </div>
         <button
-          onClick={handlePredict}
+          onClick={() => { setPredictError(null); handlePredict(); }}
           disabled={predicting}
           className="btn-primary shrink-0"
         >
@@ -122,6 +133,12 @@ export default function EquipmentDetailPage() {
           {predicting ? "Analyzing..." : "Run Prediction"}
         </button>
       </div>
+
+      {predictError && (
+        <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
+          {predictError}
+        </div>
+      )}
 
       {/* Overview cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

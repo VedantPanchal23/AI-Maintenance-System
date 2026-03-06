@@ -21,29 +21,22 @@ from app.api.v1.schemas import PredictionRequest, PredictionResponse, Prediction
 
 settings = get_settings()
 from app.core.exceptions import MLModelException, NotFoundException
+from app.core.risk import compute_risk_level as _compute_risk_level
 from app.db.models.equipment import Equipment, EquipmentStatus
 from app.db.models.prediction import Prediction, FailureType
 
-
-def _compute_risk_level(failure_probability: float) -> str:
-    """Canonical risk level calculation — used everywhere for consistency."""
-    if failure_probability >= settings.ALERT_HIGH_RISK_THRESHOLD:
-        return "critical"
-    elif failure_probability >= settings.ML_PREDICTION_THRESHOLD:
-        return "high"
-    elif failure_probability >= settings.ALERT_MEDIUM_RISK_THRESHOLD:
-        return "medium"
-    return "low"
 from app.db.models.organization import User
+from app.middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/predict", response_model=PredictionResponse)
+@limiter.limit("60/minute")
 async def predict_failure(
-    request: PredictionRequest,
-    fastapi_request: Request,
+    request: Request,
+    body: PredictionRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -56,27 +49,27 @@ async def predict_failure(
     # Verify equipment belongs to tenant
     result = await db.execute(
         select(Equipment).where(
-            Equipment.id == request.equipment_id,
+            Equipment.id == body.equipment_id,
             Equipment.organization_id == user.organization_id,
         )
     )
     equipment = result.scalar_one_or_none()
     if not equipment:
-        raise NotFoundException("Equipment", request.equipment_id)
+        raise NotFoundException("Equipment", body.equipment_id)
 
     # Get model service from app state
-    model_service = fastapi_request.app.state.model_service
+    model_service = request.app.state.model_service
     if not model_service.is_loaded:
         raise MLModelException("ML model is not loaded. Please train a model first.")
 
     # Prepare sensor data for prediction
     sensor_data = {
-        "air_temperature": request.air_temperature,
-        "process_temperature": request.process_temperature,
-        "rotational_speed": request.rotational_speed,
-        "torque": request.torque,
-        "tool_wear": request.tool_wear,
-        "vibration": request.vibration,
+        "air_temperature": body.air_temperature,
+        "process_temperature": body.process_temperature,
+        "rotational_speed": body.rotational_speed,
+        "torque": body.torque,
+        "tool_wear": body.tool_wear,
+        "vibration": body.vibration,
     }
 
     # Run inference (offload to thread to avoid blocking event loop)
@@ -87,7 +80,7 @@ async def predict_failure(
     # Store prediction in database
     prediction = Prediction(
         organization_id=user.organization_id,
-        equipment_id=request.equipment_id,
+        equipment_id=body.equipment_id,
         timestamp=now,
         failure_probability=prediction_result["failure_probability"],
         predicted_failure=prediction_result["predicted_failure"],
@@ -128,12 +121,12 @@ async def predict_failure(
         from app.ml.monitoring import get_model_monitor
         monitor = get_model_monitor()
         monitor.record_prediction(prediction_result, sensor_data)
-    except Exception:
-        pass  # Monitoring should never break predictions
+    except Exception as e:
+        logger.warning("Monitoring recording failed (non-critical): %s", e)
 
     return PredictionResponse(
         id=prediction.id,
-        equipment_id=request.equipment_id,
+        equipment_id=body.equipment_id,
         timestamp=now,
         failure_probability=prediction_result["failure_probability"],
         predicted_failure=prediction_result["predicted_failure"],

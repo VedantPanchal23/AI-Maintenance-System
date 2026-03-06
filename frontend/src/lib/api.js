@@ -206,6 +206,9 @@ export const analyticsAPI = {
 
   riskTrends: (params = {}) =>
     api.get("/analytics/trends", { params }),
+
+  systemHealth: () =>
+    axios.get(`${API_BASE}/health`, { timeout: 10000 }),
 };
 
 // ═════════════════════════════════════════
@@ -226,6 +229,23 @@ export const mlAdminAPI = {
 
   activeModel: () =>
     api.get("/ml/models/active"),
+};
+
+// ═════════════════════════════════════════
+// User Management (Admin)
+// ═════════════════════════════════════════
+export const userAPI = {
+  list: () =>
+    api.get("/users"),
+
+  get: (id) =>
+    api.get(`/users/${id}`),
+
+  updateRole: (id, role) =>
+    api.put(`/users/${id}/role`, { role }),
+
+  updateStatus: (id, isActive) =>
+    api.put(`/users/${id}/status`, { is_active: isActive }),
 };
 
 // ═════════════════════════════════════════

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { analyticsAPI } from "@/lib/api";
 import { PageSpinner } from "@/components/Loading";
+import ChartTooltip from "@/components/ChartTooltip";
 import {
   ChartBarSquareIcon,
   ExclamationTriangleIcon,
@@ -59,21 +60,6 @@ export default function AnalyticsPage() {
 
   const healthData = dashboard?.equipment_health || [];
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-xl bg-white px-3 py-2 shadow-elevated border border-slate-100 text-xs">
-        <p className="font-medium text-slate-700 mb-1">{label}</p>
-        {payload.map((p) => (
-          <p key={p.dataKey} className="text-slate-500">
-            <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: p.stroke || p.fill || p.color }} />
-            {p.name}: <span className="font-semibold text-slate-700">{typeof p.value === 'number' ? p.value.toFixed(3) : p.value}</span>
-          </p>
-        ))}
-      </div>
-    );
-  };
-
   const ranges = [7, 14, 30, 90];
 
   return (
@@ -123,7 +109,7 @@ export default function AnalyticsPage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 1]} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<ChartTooltip />} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
             <Area
               type="monotone"
@@ -161,7 +147,7 @@ export default function AnalyticsPage() {
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<ChartTooltip />} />
               <Bar
                 dataKey="risk_score"
                 fill="#f97316"

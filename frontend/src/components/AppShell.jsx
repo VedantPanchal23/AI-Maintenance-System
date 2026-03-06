@@ -65,10 +65,17 @@ export default function AppShell({ children }) {
   return (
     <ErrorBoundary>
       <div className="flex h-screen overflow-hidden bg-surface-50">
+        {/* Skip to main content link for keyboard users */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-brand-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-medium"
+        >
+          Skip to main content
+        </a>
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header onMenuToggle={() => setMobileOpen((v) => !v)} />
-          <main className="flex-1 overflow-y-auto p-5 lg:p-6">
+          <main id="main-content" className="flex-1 overflow-y-auto p-5 lg:p-6">
             <div className="mx-auto max-w-[1440px] animate-fade-in">
               {children}
             </div>

@@ -28,6 +28,19 @@ class RegisterRequest(BaseModel):
     organization_name: str = Field(..., min_length=2, max_length=255)
     role: str = Field(default="engineer", pattern="^(admin|engineer|viewer)$")
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -305,6 +318,13 @@ class MLModelInfo(BaseModel):
     model_path: str
     metrics: Dict[str, Any]
     is_loaded: bool
+
+
+class RiskTrendPoint(BaseModel):
+    date: str
+    avg_risk: float
+    max_risk: float
+    count: int
 
 
 # ═══════════════════════════════════════════════════════════════

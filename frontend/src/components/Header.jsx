@@ -56,6 +56,7 @@ export default function Header({ onMenuToggle }) {
         <button
           onClick={() => router.push("/alerts")}
           className="relative p-2.5 rounded-xl hover:bg-slate-100 transition-colors"
+          aria-label={`Alerts${activeAlerts.length > 0 ? ` (${activeAlerts.length} active)` : ''}`}
         >
           <BellIcon className="h-[1.125rem] w-[1.125rem] text-slate-500" />
           {activeAlerts.length > 0 && (
@@ -81,7 +82,7 @@ export default function Header({ onMenuToggle }) {
             <button
               onClick={handleLogout}
               className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-              title="Logout"
+              aria-label="Logout"
             >
               <ArrowRightOnRectangleIcon className="h-[1.125rem] w-[1.125rem]" />
             </button>

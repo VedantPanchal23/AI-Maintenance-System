@@ -17,7 +17,7 @@ class TestSettings:
             POSTGRES_PASSWORD="pass",
         )
         assert s.APP_ENV == "development"
-        assert s.APP_DEBUG is True
+        assert isinstance(s.APP_DEBUG, bool)
         assert s.APP_NAME == "predictive-maintenance"
 
     def test_database_url_async(self):

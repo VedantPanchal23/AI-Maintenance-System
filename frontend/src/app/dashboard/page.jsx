@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDashboardStore, useAlertStore } from "@/lib/store";
 import { createSensorWebSocket } from "@/lib/api";
 import SensorChart from "@/components/SensorChart";
 import AlertCard from "@/components/AlertCard";
-import { StatusBadge } from "@/components/StatusBadge";
+import ChartTooltip from "@/components/ChartTooltip";
 import { PageSpinner, StatSkeleton } from "@/components/Loading";
 import {
   CpuChipIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ArrowTrendingUpIcon,
-  BoltIcon,
 } from "@heroicons/react/24/outline";
 import {
   BarChart,
@@ -100,21 +99,6 @@ export default function DashboardPage() {
       }))
     : [];
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-xl bg-white px-3 py-2 shadow-elevated border border-slate-100 text-xs">
-        <p className="font-medium text-slate-700 mb-1">{label}</p>
-        {payload.map((p) => (
-          <p key={p.dataKey} className="text-slate-500">
-            <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: p.fill || p.color }} />
-            {p.name || p.dataKey}: <span className="font-semibold text-slate-700">{typeof p.value === 'number' ? p.value.toFixed(2) : p.value}</span>
-          </p>
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -162,7 +146,7 @@ export default function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<ChartTooltip />} />
               <Bar dataKey="avg_risk" name="Avg Risk" fill="#3b82f6" radius={[6, 6, 0, 0]} />
               <Bar dataKey="max_risk" name="Max Risk" fill="#ef4444" radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -192,7 +176,7 @@ export default function DashboardPage() {
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           ) : (

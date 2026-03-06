@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAlertStore } from "@/lib/store";
 import AlertCard from "@/components/AlertCard";
 import { PageSpinner } from "@/components/Loading";
@@ -10,6 +10,7 @@ export default function AlertsPage() {
   const {
     alerts,
     loading,
+    error,
     fetchAlerts,
     acknowledgeAlert,
     resolveAlert,
@@ -23,6 +24,8 @@ export default function AlertsPage() {
 
   useEffect(() => {
     fetchAlerts();
+    const interval = setInterval(fetchAlerts, 30000);
+    return () => clearInterval(interval);
   }, [fetchAlerts]);
 
   const filtered = alerts.filter((a) => {
@@ -86,6 +89,11 @@ export default function AlertsPage() {
       {/* Alert list */}
       {loading ? (
         <PageSpinner />
+      ) : error ? (
+        <div className="card empty-state py-10">
+          <BellSlashIcon className="h-10 w-10 text-red-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-500">{error}</p>
+        </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map((alert) => (

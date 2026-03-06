@@ -20,23 +20,23 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
     created_at,
   } = alert;
 
-  const severityIcon = {
-    critical: "bg-red-50 text-red-600",
-    high: "bg-orange-50 text-orange-600",
-    medium: "bg-yellow-50 text-yellow-600",
-    low: "bg-green-50 text-green-600",
+  const severityStyles = {
+    critical: { bg: "bg-red-50", text: "text-red-600" },
+    high: { bg: "bg-orange-50", text: "text-orange-600" },
+    medium: { bg: "bg-yellow-50", text: "text-yellow-600" },
+    low: { bg: "bg-green-50", text: "text-green-600" },
   };
-  const iconStyle = severityIcon[severity] || severityIcon.medium;
+  const { bg, text } = severityStyles[severity] || severityStyles.medium;
 
   return (
     <div className="card animate-fade-in">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <div
-            className={`flex h-9 w-9 items-center justify-center rounded-lg shrink-0 ${iconStyle.split(" ")[0]}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg shrink-0 ${bg}`}
           >
             <ExclamationTriangleIcon
-              className={`h-5 w-5 ${iconStyle.split(" ").slice(1).join(" ")}`}
+              className={`h-5 w-5 ${text}`}
             />
           </div>
           <div className="min-w-0">

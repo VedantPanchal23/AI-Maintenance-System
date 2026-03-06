@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from app.config import get_settings
+from app.core.risk import compute_risk_level as _compute_risk_level
 from app.ml.features import FeatureEngineer
 
 logger = logging.getLogger(__name__)
@@ -139,14 +140,7 @@ class ModelInferenceService:
         predicted_failure = failure_prob >= settings.ML_PREDICTION_THRESHOLD
 
         # Determine risk level
-        if failure_prob >= settings.ALERT_HIGH_RISK_THRESHOLD:
-            risk_level = "critical"
-        elif failure_prob >= settings.ML_PREDICTION_THRESHOLD:
-            risk_level = "high"
-        elif failure_prob >= settings.ALERT_MEDIUM_RISK_THRESHOLD:
-            risk_level = "medium"
-        else:
-            risk_level = "low"
+        risk_level = _compute_risk_level(failure_prob)
 
         # Determine likely failure type based on feature values
         failure_type = self._infer_failure_type(sensor_data, failure_prob)
@@ -165,8 +159,39 @@ class ModelInferenceService:
         }
 
     def predict_batch(self, sensor_data_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Run predictions on multiple sensor readings."""
-        return [self.predict(data) for data in sensor_data_list]
+        """Run predictions on multiple sensor readings using vectorized inference."""
+        if not self.is_loaded:
+            raise RuntimeError("No model loaded. Call load_model() first.")
+        if not sensor_data_list:
+            return []
+
+        # Batch prepare all data into one DataFrame
+        df = pd.DataFrame(sensor_data_list)
+        X = self._feature_engineer.prepare_for_inference(df)
+
+        # Batch probability prediction
+        if hasattr(self._active_model, "predict_proba"):
+            probas = self._active_model.predict_proba(X)[:, 1]
+        else:
+            probas = self._active_model.predict(X).astype(float)
+
+        results = []
+        for i, (sensor_data, failure_prob) in enumerate(zip(sensor_data_list, probas)):
+            failure_prob = float(failure_prob)
+            predicted_failure = failure_prob >= settings.ML_PREDICTION_THRESHOLD
+            risk_level = _compute_risk_level(failure_prob)
+            failure_type = self._infer_failure_type(sensor_data, failure_prob)
+
+            results.append({
+                "failure_probability": round(failure_prob, 4),
+                "predicted_failure": predicted_failure,
+                "confidence": round(max(failure_prob, 1 - failure_prob), 4),
+                "failure_type": failure_type,
+                "risk_level": risk_level,
+                "model_version": self._active_model_info.get("version", "unknown"),
+            })
+
+        return results
 
     def _infer_failure_type(self, data: Dict[str, Any], prob: float) -> str:
         """Heuristic failure type classification based on sensor patterns."""

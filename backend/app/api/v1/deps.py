@@ -48,9 +48,14 @@ async def get_current_user(
     if not user_id:
         raise UnauthorizedException("Invalid token payload")
 
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except (ValueError, AttributeError):
+        raise UnauthorizedException("Invalid token payload")
+
     # Fetch user from database
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id), User.is_active == True)
+        select(User).where(User.id == user_uuid, User.is_active == True)
     )
     user = result.scalar_one_or_none()
 

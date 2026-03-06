@@ -119,7 +119,13 @@ async def login(
     """Authenticate user and return JWT tokens."""
 
     result = await db.execute(
-        select(User).where(User.email == body.email, User.is_active == True)
+        select(User)
+        .join(Organization, User.organization_id == Organization.id)
+        .where(
+            User.email == body.email,
+            User.is_active == True,
+            Organization.is_active == True,
+        )
     )
     user = result.scalar_one_or_none()
 

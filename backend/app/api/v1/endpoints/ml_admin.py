@@ -127,10 +127,16 @@ async def load_model(
     user: User = Depends(get_current_admin),
 ):
     """Load a specific model artifact into the inference service."""
+    # Prevent path traversal — resolve and verify within allowed directory
+    model_dir = Path(settings.ML_MODEL_DIR).resolve()
+    requested_path = Path(request.model_path).resolve()
+    if not str(requested_path).startswith(str(model_dir)):
+        raise MLModelException("Invalid model path: must be within the model directory")
+
     model_service = fastapi_request.app.state.model_service
 
     try:
-        await model_service.load_model(request.model_path)
+        await model_service.load_model(str(requested_path))
     except FileNotFoundError:
         raise MLModelException(f"Model file not found: {request.model_path}")
 

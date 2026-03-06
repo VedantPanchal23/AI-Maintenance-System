@@ -15,12 +15,13 @@ export default function MaintenancePage() {
   const [selectedId, setSelectedId] = useState("");
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     equipmentAPI
       .list({ status: "maintenance", page_size: 100 })
       .then(({ data }) => setEquipment(data.items || data || []))
-      .catch(console.error)
+      .catch((err) => setFetchError(err.message || "Failed to load maintenance data"))
       .finally(() => setLoading(false));
     equipmentAPI
       .list({ page_size: 100 })
@@ -29,6 +30,14 @@ export default function MaintenancePage() {
   }, []);
 
   if (loading) return <PageSpinner />;
+  if (fetchError) {
+    return (
+      <div className="card empty-state py-16">
+        <WrenchScrewdriverIcon className="h-10 w-10 text-red-300 mx-auto mb-3" />
+        <p className="font-medium text-slate-500">{fetchError}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

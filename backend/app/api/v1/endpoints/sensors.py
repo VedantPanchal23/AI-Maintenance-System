@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.core.exceptions import NotFoundException
 from app.db.models.equipment import Equipment
 from app.db.models.sensor import SensorReading
 from app.db.models.organization import User
+from app.middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -66,14 +67,16 @@ async def create_sensor_reading(
 
 
 @router.post("/readings/batch", status_code=201)
+@limiter.limit("60/minute")
 async def create_sensor_readings_batch(
-    request: SensorBatchCreate,
+    request: Request,
+    body: SensorBatchCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Ingest a batch of sensor readings (up to 1000)."""
     # Collect unique equipment IDs and validate tenant ownership
-    equipment_ids = {item.equipment_id for item in request.readings}
+    equipment_ids = {item.equipment_id for item in body.readings}
     for eq_id in equipment_ids:
         result = await db.execute(
             select(Equipment).where(
@@ -86,7 +89,7 @@ async def create_sensor_readings_batch(
             raise NotFoundException("Equipment", eq_id)
 
     readings = []
-    for item in request.readings:
+    for item in body.readings:
         reading = SensorReading(
             organization_id=user.organization_id,
             equipment_id=item.equipment_id,

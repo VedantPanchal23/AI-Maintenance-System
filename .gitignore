@@ -62,6 +62,8 @@ data/raw/*.parquet
 # Temp scripts
 backend/_check_db.py
 backend/_check_tables.py
+backend/_test_apis.py
+test_api_audit.ps1
 
 # Coverage
 htmlcov/

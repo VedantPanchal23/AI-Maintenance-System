@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import {
   HomeIcon,
@@ -26,6 +27,18 @@ const navigation = [
 
 export default function Sidebar({ mobileOpen, onClose }) {
   const pathname = usePathname();
+
+  // Close mobile sidebar on Escape key
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "Escape" && mobileOpen && onClose) onClose();
+  }, [mobileOpen, onClose]);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [mobileOpen, handleKeyDown]);
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -100,8 +113,8 @@ export default function Sidebar({ mobileOpen, onClose }) {
       {/* Mobile overlay sidebar */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-          <aside className="fixed inset-y-0 left-0 flex flex-col w-64 bg-slate-950 text-white shadow-2xl animate-slide-in">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+          <aside className="fixed inset-y-0 left-0 flex flex-col w-64 bg-slate-950 text-white shadow-2xl animate-slide-in" role="dialog" aria-modal="true" aria-label="Navigation menu">
             {sidebarContent}
           </aside>
         </div>
