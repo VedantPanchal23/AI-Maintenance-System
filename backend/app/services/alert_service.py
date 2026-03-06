@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.db.models.alert import Alert, AlertSeverity, AlertStatus
 from app.db.models.equipment import Equipment
+from app.db.models.organization import User
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -125,12 +126,35 @@ class AlertService:
     async def _send_email_notification(
         self, alert: Alert, equipment: Equipment
     ) -> None:
-        """Send email notification for high-severity alerts."""
+        """Send email notification to org users whose preferences match."""
         try:
             import aiosmtplib
             from email.mime.text import MIMEText
 
-            msg = MIMEText(
+            # Collect recipients from org users based on their alert preferences
+            result = await self.db.execute(
+                select(User).where(
+                    User.organization_id == self.organization_id,
+                    User.is_active.is_(True),
+                )
+            )
+            users = result.scalars().all()
+
+            recipients = []
+            for u in users:
+                prefs = u.alert_preferences or {"email_enabled": True, "severities": ["critical", "high"]}
+                if not prefs.get("email_enabled", True):
+                    continue
+                allowed = [s.lower() for s in prefs.get("severities", ["critical", "high"])]
+                if alert.severity.value not in allowed:
+                    continue
+                recipients.append(u.notification_email or u.email)
+
+            if not recipients:
+                logger.debug("No recipients opted-in for %s alert", alert.severity.value)
+                return
+
+            body_text = (
                 f"ALERT: {alert.title}\n\n"
                 f"{alert.message}\n\n"
                 f"Equipment: {equipment.name}\n"
@@ -139,9 +163,11 @@ class AlertService:
                 f"Time: {datetime.now(timezone.utc).isoformat()}\n\n"
                 f"Please log in to the dashboard for details."
             )
+
+            msg = MIMEText(body_text)
             msg["Subject"] = f"[{alert.severity.value.upper()}] {alert.title}"
             msg["From"] = settings.ALERT_FROM_EMAIL
-            msg["To"] = settings.SMTP_USER  # Send to admin; extend for team
+            msg["To"] = ", ".join(recipients)
 
             await aiosmtplib.send(
                 msg,
@@ -153,7 +179,7 @@ class AlertService:
             )
 
             alert.email_sent = True
-            logger.info("Alert email sent for alert %s", alert.id)
+            logger.info("Alert email sent to %d recipients for alert %s", len(recipients), alert.id)
 
         except Exception as e:
             logger.error("Failed to send alert email: %s", str(e))

@@ -10,15 +10,16 @@ PUT    /users/{id}/status  — Activate/deactivate user
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_admin, get_db
-from app.api.v1.schemas import UserResponse
+from app.api.v1.deps import get_current_admin, get_current_user, get_db
+from app.api.v1.schemas import AlertPreferencesResponse, AlertPreferencesUpdate, UserResponse
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.db.models.organization import User, UserRole
+from app.services.audit import record_audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -93,6 +94,7 @@ async def get_user(
 async def update_user_role(
     user_id: uuid.UUID,
     body: RoleUpdateRequest,
+    request: Request,
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -118,6 +120,17 @@ async def update_user_role(
     user.role = new_role
     await db.flush()
 
+    await record_audit(
+        db,
+        user_id=admin.id,
+        organization_id=admin.organization_id,
+        action="user.role_change",
+        resource_type="user",
+        resource_id=str(user_id),
+        details={"new_role": new_role.value},
+        ip_address=request.client.host if request.client else None,
+    )
+
     logger.info("User %s role changed to %s by admin %s", user_id, new_role.value, admin.id)
 
     return UserResponse(
@@ -136,6 +149,7 @@ async def update_user_role(
 async def update_user_status(
     user_id: uuid.UUID,
     body: StatusUpdateRequest,
+    request: Request,
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -156,6 +170,17 @@ async def update_user_status(
     user.is_active = body.is_active
     await db.flush()
 
+    await record_audit(
+        db,
+        user_id=admin.id,
+        organization_id=admin.organization_id,
+        action="user.status_change",
+        resource_type="user",
+        resource_id=str(user_id),
+        details={"is_active": body.is_active},
+        ip_address=request.client.host if request.client else None,
+    )
+
     logger.info("User %s status changed to is_active=%s by admin %s", user_id, body.is_active, admin.id)
 
     return UserResponse(
@@ -167,4 +192,44 @@ async def update_user_status(
         is_active=user.is_active,
         last_login=user.last_login,
         created_at=user.created_at,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# Alert Preferences (self-service)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/me/alert-preferences", response_model=AlertPreferencesResponse)
+async def get_my_alert_preferences(
+    user: User = Depends(get_current_user),
+):
+    """Get the current user's alert notification preferences."""
+    prefs = user.alert_preferences or {"email_enabled": True, "severities": ["critical", "high"]}
+    return AlertPreferencesResponse(
+        notification_email=user.notification_email,
+        email_enabled=prefs.get("email_enabled", True),
+        severities=prefs.get("severities", ["critical", "high"]),
+    )
+
+
+@router.put("/me/alert-preferences", response_model=AlertPreferencesResponse)
+async def update_my_alert_preferences(
+    body: AlertPreferencesUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's alert notification preferences."""
+    if body.notification_email is not None:
+        user.notification_email = body.notification_email
+
+    user.alert_preferences = {
+        "email_enabled": body.email_enabled,
+        "severities": body.severities,
+    }
+    await db.flush()
+
+    return AlertPreferencesResponse(
+        notification_email=user.notification_email,
+        email_enabled=body.email_enabled,
+        severities=body.severities,
     )

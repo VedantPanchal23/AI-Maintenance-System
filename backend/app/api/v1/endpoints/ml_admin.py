@@ -25,6 +25,7 @@ from app.db.models.organization import User
 from app.db.models.prediction import MLModel, MLTrainingRun
 from app.ml.training import TrainingPipeline
 from app.middleware.rate_limit import limiter
+from app.services.audit import record_audit
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -64,6 +65,17 @@ async def train_model(
     # Persist training run to ml_training_runs table
     await _persist_training_run(db, result, ml_model.id, started_at)
     await db.flush()
+
+    await record_audit(
+        db,
+        user_id=user.id,
+        organization_id=user.organization_id,
+        action="ml.train_model",
+        resource_type="ml_model",
+        resource_id=str(ml_model.id),
+        details={"algorithm": result["algorithm"], "version": result["version"]},
+        ip_address=request.client.host if request.client else None,
+    )
 
     logger.info(
         "Model trained: %s v%s (F1=%.4f)",
@@ -198,6 +210,17 @@ async def load_model(
     ml_model = result.scalar_one_or_none()
     if ml_model:
         model_service.model_info["db_id"] = ml_model.id
+
+    await record_audit(
+        db,
+        user_id=user.id,
+        organization_id=user.organization_id,
+        action="ml.load_model",
+        resource_type="ml_model",
+        resource_id=str(requested_path.name),
+        details={"model_path": str(requested_path)},
+        ip_address=fastapi_request.client.host if fastapi_request.client else None,
+    )
 
     return {
         "status": "loaded",

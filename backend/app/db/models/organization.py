@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -60,6 +60,14 @@ class User(Base, TimestampMixin):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Alert / notification preferences
+    notification_email: Mapped[str] = mapped_column(String(255), nullable=True)
+    alert_preferences: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=True,
+        default=lambda: {"email_enabled": True, "severities": ["critical", "high"]},
+    )
 
     # Relationships
     organization = relationship("Organization", back_populates="users")

@@ -16,7 +16,7 @@ from app.db.models.organization import Organization, User
 from app.db.models.equipment import Equipment
 from app.db.models.sensor import SensorReading
 from app.db.models.prediction import Prediction, MLModel, MLTrainingRun
-from app.db.models.alert import Alert, MaintenanceLog
+from app.db.models.alert import Alert, MaintenanceLog, AuditLog
 
 config = context.config
 

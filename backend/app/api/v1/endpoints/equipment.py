@@ -12,7 +12,7 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +30,7 @@ from app.db.models.equipment import Equipment, EquipmentStatus, EquipmentType
 from app.db.models.organization import User
 from app.db.models.prediction import Prediction
 from app.db.models.sensor import SensorReading
+from app.services.audit import record_audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -204,6 +205,7 @@ async def list_equipment(
 @router.post("", response_model=EquipmentResponse, status_code=201)
 async def create_equipment(
     request: EquipmentCreate,
+    fastapi_request: Request,
     user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -223,6 +225,17 @@ async def create_equipment(
     )
     db.add(equipment)
     await db.flush()
+
+    await record_audit(
+        db,
+        user_id=user.id,
+        organization_id=user.organization_id,
+        action="equipment.create",
+        resource_type="equipment",
+        resource_id=str(equipment.id),
+        details={"name": equipment.name, "type": request.equipment_type.value},
+        ip_address=fastapi_request.client.host if fastapi_request.client else None,
+    )
 
     logger.info("Created equipment: %s (id=%s)", equipment.name, equipment.id)
     return await _enrich_equipment(db, equipment)
@@ -284,6 +297,7 @@ async def update_equipment(
 @router.delete("/{equipment_id}", status_code=204)
 async def delete_equipment(
     equipment_id: uuid.UUID,
+    fastapi_request: Request,
     user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -301,4 +315,15 @@ async def delete_equipment(
 
     equipment.is_active = False
     await db.flush()
+
+    await record_audit(
+        db,
+        user_id=user.id,
+        organization_id=user.organization_id,
+        action="equipment.delete",
+        resource_type="equipment",
+        resource_id=str(equipment_id),
+        ip_address=fastapi_request.client.host if fastapi_request.client else None,
+    )
+
     logger.info("Soft-deleted equipment: %s", equipment_id)

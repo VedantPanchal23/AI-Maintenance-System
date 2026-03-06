@@ -4,7 +4,7 @@ API v1 Router — Aggregates all endpoint routers.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, equipment, predictions, alerts, sensors, analytics, ml_admin, users
+from app.api.v1.endpoints import auth, equipment, predictions, alerts, sensors, analytics, ml_admin, users, maintenance, audit
 
 api_router = APIRouter()
 
@@ -14,5 +14,7 @@ api_router.include_router(equipment.router, prefix="/equipment", tags=["Equipmen
 api_router.include_router(sensors.router, prefix="/sensors", tags=["Sensors"])
 api_router.include_router(predictions.router, prefix="/predictions", tags=["Predictions"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
+api_router.include_router(maintenance.router, prefix="/maintenance", tags=["Maintenance Logs"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(ml_admin.router, prefix="/ml", tags=["ML Administration"])
+api_router.include_router(audit.router, prefix="/audit-logs", tags=["Audit Logs"])

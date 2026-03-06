@@ -355,6 +355,112 @@ class TrainingResultResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════
+# Maintenance Log Schemas
+# ═══════════════════════════════════════════════════════════════
+
+class MaintenanceTypeEnum(str, Enum):
+    PREVENTIVE = "preventive"
+    CORRECTIVE = "corrective"
+    PREDICTIVE = "predictive"
+
+
+class MaintenanceLogCreate(BaseModel):
+    equipment_id: uuid.UUID
+    maintenance_type: MaintenanceTypeEnum
+    description: str = Field(..., min_length=5, max_length=2000)
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    cost: Optional[float] = Field(None, ge=0)
+    downtime_hours: Optional[float] = Field(None, ge=0)
+    parts_replaced: Optional[str] = None
+
+
+class MaintenanceLogUpdate(BaseModel):
+    description: Optional[str] = Field(None, min_length=5, max_length=2000)
+    completed_at: Optional[datetime] = None
+    cost: Optional[float] = Field(None, ge=0)
+    downtime_hours: Optional[float] = Field(None, ge=0)
+    parts_replaced: Optional[str] = None
+
+
+class MaintenanceLogResponse(BaseModel):
+    id: uuid.UUID
+    equipment_id: uuid.UUID
+    performed_by: Optional[uuid.UUID]
+    maintenance_type: str
+    description: str
+    started_at: datetime
+    completed_at: Optional[datetime]
+    cost: Optional[float]
+    downtime_hours: Optional[float]
+    parts_replaced: Optional[str]
+    equipment_name: Optional[str] = None
+    performer_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class MaintenanceLogListResponse(BaseModel):
+    items: List[MaintenanceLogResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+# ═══════════════════════════════════════════════════════════════
+# User Alert Preference Schemas
+# ═══════════════════════════════════════════════════════════════
+
+class AlertPreferencesUpdate(BaseModel):
+    notification_email: Optional[EmailStr] = None
+    email_enabled: bool = True
+    severities: List[str] = Field(
+        default=["critical", "high"],
+        description="Severity levels to receive email alerts for",
+    )
+
+    @field_validator("severities")
+    @classmethod
+    def validate_severities(cls, v: list) -> list:
+        allowed = {"low", "medium", "high", "critical"}
+        for s in v:
+            if s.lower() not in allowed:
+                raise ValueError(f"Invalid severity '{s}'. Allowed: {allowed}")
+        return [s.lower() for s in v]
+
+
+class AlertPreferencesResponse(BaseModel):
+    notification_email: Optional[str] = None
+    email_enabled: bool
+    severities: List[str]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Audit Log Schemas
+# ═══════════════════════════════════════════════════════════════
+
+class AuditLogResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    action: str
+    resource_type: Optional[str]
+    resource_id: Optional[str]
+    details: Optional[Dict[str, Any]]
+    ip_address: Optional[str]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AuditLogListResponse(BaseModel):
+    items: List[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+# ═══════════════════════════════════════════════════════════════
 # Pagination & Common
 # ═══════════════════════════════════════════════════════════════
 
