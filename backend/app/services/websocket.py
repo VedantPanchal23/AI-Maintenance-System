@@ -117,6 +117,9 @@ async def sensor_stream(
     - {"type": "subscribe", "equipment_ids": ["id1", "id2"]} → filters delivery
     - {"type": "unsubscribe"} → receive all messages again
     """
+    # Must accept before we can close with a code
+    await websocket.accept()
+
     # --- JWT authentication ---
     if not token:
         await websocket.close(code=4001, reason="Missing token")
@@ -134,11 +137,27 @@ async def sensor_stream(
         await websocket.close(code=4003, reason="Invalid or expired token")
         return
 
-    await manager.connect(websocket)
+    # Register connection (already accepted above)
+    manager._connections[websocket] = set()
+    logger.info(
+        "WebSocket connected: %s (total=%d)",
+        websocket.client.host if websocket.client else "unknown",
+        len(manager._connections),
+    )
 
     try:
         while True:
-            data = await websocket.receive_text()
+            # Wait for client messages with a timeout for keepalive
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+            except asyncio.TimeoutError:
+                # Send keepalive ping
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception:
+                    break
+                continue
+
             try:
                 message = json.loads(data)
             except json.JSONDecodeError:
@@ -167,3 +186,4 @@ async def sensor_stream(
     except Exception as e:
         logger.error("WebSocket error: %s", e)
         manager.disconnect(websocket)
+
