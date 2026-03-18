@@ -71,11 +71,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Start simulation if enabled
     if settings.SIMULATION_ENABLED:
         from app.services.simulation import SimulationEngine
-        sim_engine = SimulationEngine()
+        from app.db.session import async_session_factory
 
-        # Register equipment from DB, or use defaults for demo
+        # Pass model_service + session_factory so simulation can auto-predict
+        sim_engine = SimulationEngine(
+            model_service=model_service,
+            session_factory=async_session_factory,
+        )
+
+        # Register equipment from DB
         try:
-            from app.db.session import async_session_factory
             from app.db.models.equipment import Equipment
             from sqlalchemy import select
 
@@ -112,8 +117,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         sim_engine.add_listener(broadcast_sensor_readings)
 
         app.state.simulation_engine = sim_engine
-        asyncio.create_task(sim_engine.start())
-        logger.info("Simulation engine started with %d equipment", len(sim_engine.simulators))
+        asyncio.create_task(sim_engine.start(interval_seconds=10))
+        logger.info(
+            "Simulation engine started with %d equipment (auto-prediction every 10s)",
+            len(sim_engine.simulators),
+        )
 
     # Initialize Redis
     from app.db.redis import init_redis
