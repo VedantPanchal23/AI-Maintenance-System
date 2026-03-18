@@ -1,8 +1,9 @@
 "use client";
 
+import { memo } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,8 +26,8 @@ const SENSOR_COLORS = {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl bg-white px-4 py-3 shadow-elevated border border-slate-200/60">
-      <p className="text-2xs text-slate-500 mb-1.5">
+    <div className="rounded-xl bg-white dark:bg-surface-800 px-4 py-3 shadow-elevated border border-slate-200/60 dark:border-surface-700/60">
+      <p className="text-2xs text-slate-500 dark:text-slate-400 mb-1.5">
         {new Date(label).toLocaleString("en-IN")}
       </p>
       {payload.map((entry) => (
@@ -35,8 +36,10 @@ function ChartTooltip({ active, payload, label }) {
             className="h-2 w-2 rounded-full shrink-0"
             style={{ backgroundColor: entry.color }}
           />
-          <span className="text-slate-600 capitalize">{entry.name}</span>
-          <span className="ml-auto font-semibold tabular-nums text-slate-900">
+          <span className="text-slate-600 dark:text-slate-300 capitalize">
+            {entry.name}
+          </span>
+          <span className="ml-auto font-semibold tabular-nums text-slate-900 dark:text-slate-100">
             {typeof entry.value === "number" ? entry.value.toFixed(1) : entry.value}
           </span>
         </div>
@@ -48,7 +51,7 @@ function ChartTooltip({ active, payload, label }) {
 /**
  * Real-time sensor chart for a single equipment
  */
-export default function SensorChart({
+const SensorChart = memo(function SensorChart({
   data = [],
   sensors = ["air_temperature", "process_temperature"],
   height = 300,
@@ -56,10 +59,10 @@ export default function SensorChart({
   if (!data.length) {
     return (
       <div
-        className="flex flex-col items-center justify-center gap-2 text-sm text-slate-400"
+        className="flex flex-col items-center justify-center gap-2 text-sm text-slate-400 dark:text-slate-500"
         style={{ height }}
       >
-        <SignalIcon className="h-8 w-8 text-slate-300" />
+        <SignalIcon className="h-8 w-8 text-slate-300 dark:text-slate-600" />
         No sensor data available
       </div>
     );
@@ -67,8 +70,16 @@ export default function SensorChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid vertical={false} stroke="#f1f5f9" />
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <defs>
+          {sensors.map((key) => (
+            <linearGradient key={`color-${key}`} id={`color-${key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={SENSOR_COLORS[key] || "#6b7280"} stopOpacity={0.4} />
+              <stop offset="95%" stopColor={SENSOR_COLORS[key] || "#6b7280"} stopOpacity={0} />
+            </linearGradient>
+          ))}
+        </defs>
+        <CartesianGrid vertical={false} stroke="#64748b" strokeDasharray="3 3" opacity={0.15} />
         <XAxis
           dataKey="timestamp"
           tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -94,17 +105,20 @@ export default function SensorChart({
           iconSize={8}
         />
         {sensors.map((key) => (
-          <Line
+          <Area
             key={key}
             type="monotone"
             dataKey={key}
             stroke={SENSOR_COLORS[key] || "#6b7280"}
+            fill={`url(#color-${key})`}
             strokeWidth={2}
-            dot={false}
+            isAnimationActive={false}
             name={key.replace(/_/g, " ")}
           />
         ))}
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
-}
+});
+
+export default SensorChart;
