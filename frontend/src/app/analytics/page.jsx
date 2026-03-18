@@ -106,9 +106,9 @@ export default function AnalyticsPage() {
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 1]} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#64748b" vertical={false} opacity={0.3} />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} domain={[0, 1]} axisLine={false} tickLine={false} />
             <Tooltip content={<ChartTooltip />} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
             <Area
@@ -137,20 +137,26 @@ export default function AnalyticsPage() {
         {healthData.length > 0 ? (
           <ResponsiveContainer width="100%" height={Math.max(300, healthData.length * 36)}>
             <BarChart data={healthData} layout="vertical" barSize={16}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-              <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <defs>
+                <linearGradient id="riskGradBar" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#ef4444" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#64748b" horizontal={false} opacity={0.3} />
+              <XAxis type="number" domain={[0, 1]} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <YAxis
                 type="category"
                 dataKey="equipment_name"
                 width={140}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip content={<ChartTooltip />} />
               <Bar
                 dataKey="risk_score"
-                fill="#f97316"
+                fill="url(#riskGradBar)"
                 radius={[0, 6, 6, 0]}
                 name="Risk Score"
               />

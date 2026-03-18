@@ -12,10 +12,11 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ArrowTrendingUpIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -41,13 +42,25 @@ export default function DashboardPage() {
     fetchActiveAlerts();
 
     const ws = createSensorWebSocket((msg) => {
-      const reading = msg?.data || msg;
-      setSensorData((prev) => [...prev, reading].slice(-100));
+      if (msg?.type === "prediction") {
+        // If a failure is predicted, immediately refresh alerts and dashboard stats
+        if (msg.predicted_failure) {
+          fetchActiveAlerts();
+          fetchDashboard();
+        }
+        return;
+      }
+      
+      // Handle standard sensor readings
+      const reading = msg?.type === "sensor_reading" ? msg.data : (msg?.data || msg);
+      if (reading && !reading.type) {
+        setSensorData((prev) => [...prev, reading].slice(-100));
+      }
     });
 
     const interval = setInterval(() => {
       fetchDashboard();
-    }, 30000);
+    }, 10000); // refresh every 10s to sync with auto-prediction cycle
 
     return () => {
       ws.close();
@@ -142,14 +155,24 @@ export default function DashboardPage() {
         <div className="card lg:col-span-2">
           <h2 className="section-title mb-4">Risk Score Trends (7 days)</h2>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={riskTrends} barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
+            <AreaChart data={riskTrends}>
+              <defs>
+                <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorMax" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#64748b" vertical={false} opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="avg_risk" name="Avg Risk" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="max_risk" name="Max Risk" fill="#ef4444" radius={[6, 6, 0, 0]} />
-            </BarChart>
+              <Area type="monotone" dataKey="max_risk" name="Max Risk" stroke="#ef4444" fill="url(#colorMax)" strokeWidth={2} />
+              <Area type="monotone" dataKey="avg_risk" name="Avg Risk" stroke="#3b82f6" fill="url(#colorAvg)" strokeWidth={2} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
 
