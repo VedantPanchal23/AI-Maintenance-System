@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { equipmentAPI, sensorAPI, predictionAPI } from "@/lib/api";
+import { equipmentAPI, sensorAPI, predictionAPI, createSensorWebSocket } from "@/lib/api";
 import SensorChart from "@/components/SensorChart";
 import RiskGauge from "@/components/RiskGauge";
 import { StatusBadge, RiskBadge } from "@/components/StatusBadge";
@@ -52,6 +52,23 @@ export default function EquipmentDetailPage() {
       }
     }
     load();
+
+    // Listen for real-time sensor readings and automatic ML predictions
+    const ws = createSensorWebSocket((msg) => {
+      if (msg?.type === "prediction" && msg.equipment_id === params.id) {
+        setPredictions((prev) => {
+          // Prevent duplicates by checking timestamp
+          if (prev.length > 0 && prev[0].timestamp === msg.timestamp) return prev;
+          return [msg, ...prev].slice(0, 20);
+        });
+      } else if (msg?.type === "sensor_reading" && msg.data?.equipment_id === params.id) {
+        setSensorData((prev) => [...prev, msg.data].slice(-100));
+      }
+    });
+
+    return () => {
+      ws.close();
+    };
   }, [params.id]);
 
   const handlePredict = async () => {
