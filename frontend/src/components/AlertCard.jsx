@@ -21,10 +21,10 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
   } = alert;
 
   const severityStyles = {
-    critical: { bg: "bg-red-50", text: "text-red-600" },
-    high: { bg: "bg-orange-50", text: "text-orange-600" },
-    medium: { bg: "bg-yellow-50", text: "text-yellow-600" },
-    low: { bg: "bg-green-50", text: "text-green-600" },
+    critical: { bg: "bg-red-50 dark:bg-red-500/10", text: "text-red-600 dark:text-red-400" },
+    high: { bg: "bg-orange-50 dark:bg-orange-500/10", text: "text-orange-600 dark:text-orange-400" },
+    medium: { bg: "bg-yellow-50 dark:bg-yellow-500/10", text: "text-yellow-600 dark:text-yellow-400" },
+    low: { bg: "bg-green-50 dark:bg-green-500/10", text: "text-green-600 dark:text-green-400" },
   };
   const { bg, text } = severityStyles[severity] || severityStyles.medium;
 
@@ -40,10 +40,10 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
             />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900 truncate">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
               {title || "Equipment Alert"}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 truncate">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               {equipment_name} &middot; {failure_type?.replace(/_/g, " ") || "Unknown"} &middot;{" "}
               {timeAgo(created_at)}
             </p>
@@ -57,12 +57,12 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
       </div>
 
       {message && (
-        <p className="mt-3 text-sm text-slate-600 leading-relaxed">{message}</p>
+        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
       )}
 
       {failure_probability != null && (
         <div className="mt-3 flex items-center gap-3">
-          <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+          <div className="flex-1 bg-slate-100 dark:bg-surface-800 rounded-full h-1.5">
             <div
               className={`h-1.5 rounded-full transition-all duration-500 ${
                 failure_probability >= 0.75
@@ -74,7 +74,7 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
               style={{ width: `${(failure_probability * 100).toFixed(0)}%` }}
             />
           </div>
-          <span className="text-xs font-semibold text-slate-700 tabular-nums w-12 text-right">
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums w-12 text-right">
             {(failure_probability * 100).toFixed(1)}%
           </span>
         </div>
@@ -82,7 +82,7 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
 
       {/* Actions */}
       {status === "active" && (
-        <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60 flex gap-2">
           <button
             onClick={() => onAcknowledge?.(id)}
             className="btn-ghost text-xs py-1.5 px-3"
@@ -98,7 +98,7 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
         </div>
       )}
       {status === "acknowledged" && (
-        <div className="mt-4 pt-4 border-t border-slate-100">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60">
           <button
             onClick={() => onResolve?.(id)}
             className="btn-primary text-xs py-1.5 px-3"
