@@ -1,4 +1,5 @@
 @tailwind base;
+/* Force tailwind rebuild cache */
 @tailwind components;
 @tailwind utilities;
 
@@ -28,7 +29,7 @@ html {
 }
 
 body {
-  @apply bg-surface-100 text-slate-800 antialiased;
+  @apply bg-surface-100 dark:bg-surface-950 text-slate-800 dark:text-slate-200 antialiased;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
@@ -48,13 +49,13 @@ body {
 
   /* ─── Card system ─── */
   .card {
-    @apply bg-white rounded-2xl border border-slate-200/80 p-6
-           shadow-card;
+    @apply bg-white dark:bg-surface-900/40 rounded-2xl border border-slate-200/80 dark:border-surface-800/80 p-6
+           shadow-card dark:shadow-none dark:backdrop-blur-xl relative z-10;
   }
   .card-hover {
     @apply card
            transition-all duration-200 ease-out
-           hover:shadow-card-hover hover:border-slate-300/80
+           hover:shadow-card-hover dark:hover:shadow-glow-blue/10 hover:border-slate-300/80 dark:hover:border-brand-500/30
            hover:-translate-y-[1px];
   }
 
@@ -63,10 +64,10 @@ body {
     @apply card flex flex-col gap-2 relative overflow-hidden;
   }
   .stat-value {
-    @apply text-[1.75rem] font-bold tracking-tight text-slate-900 leading-none;
+    @apply text-[1.75rem] font-bold tracking-tight text-slate-900 dark:text-white leading-none;
   }
   .stat-label {
-    @apply text-[0.8125rem] font-medium text-slate-500 leading-tight;
+    @apply text-[0.8125rem] font-medium text-slate-500 dark:text-slate-400 leading-tight;
   }
 
   /* ─── Badge ─── */
@@ -79,7 +80,7 @@ body {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
            bg-brand-600 text-white text-sm font-semibold rounded-xl
-           shadow-sm
+           shadow-sm dark:shadow-glow-blue
            hover:bg-brand-700 hover:shadow-md
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
            active:scale-[0.98]
@@ -89,9 +90,9 @@ body {
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5
-           bg-white text-slate-700 text-sm font-semibold rounded-xl
-           border border-slate-200 shadow-sm
-           hover:bg-slate-50 hover:border-slate-300 hover:shadow
+           bg-white dark:bg-surface-800 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-xl
+           border border-slate-200 dark:border-surface-700/50 shadow-sm
+           hover:bg-slate-50 dark:hover:bg-surface-700 hover:border-slate-300 dark:hover:border-surface-600 hover:shadow
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2
            active:scale-[0.98]
            disabled:opacity-50 disabled:cursor-not-allowed
@@ -110,8 +111,8 @@ body {
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-3 py-2
-           text-slate-600 text-sm font-medium rounded-xl
-           hover:bg-slate-100 hover:text-slate-900
+           text-slate-600 dark:text-slate-400 text-sm font-medium rounded-xl
+           hover:bg-slate-100 dark:hover:bg-surface-800 hover:text-slate-900 dark:hover:text-white
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2
            active:scale-[0.98]
            transition-all duration-150 ease-out;
@@ -119,49 +120,49 @@ body {
 
   /* ─── Form inputs ─── */
   .input-field {
-    @apply w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl
-           text-sm text-slate-800 placeholder:text-slate-400
-           shadow-sm
+    @apply w-full px-3.5 py-2.5 bg-white dark:bg-surface-900/50 border border-slate-200 dark:border-surface-700/80 rounded-xl
+           text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder-slate-500
+           shadow-sm dark:shadow-none
            focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400
            transition-all duration-150;
   }
   .input-field:hover:not(:focus) {
-    @apply border-slate-300;
+    @apply border-slate-300 dark:border-surface-600;
   }
 
   /* ─── Table styles ─── */
   .table-header {
-    @apply text-left py-3 px-4 text-[0.6875rem] font-semibold text-slate-500
-           uppercase tracking-wider bg-slate-50/80;
+    @apply text-left py-3 px-4 text-[0.6875rem] font-semibold text-slate-500 dark:text-slate-400
+           uppercase tracking-wider bg-slate-50/80 dark:bg-surface-800/40;
   }
   .table-cell {
-    @apply py-3 px-4 text-sm text-slate-700;
+    @apply py-3 px-4 text-sm text-slate-700 dark:text-slate-300;
   }
   .table-row {
-    @apply border-b border-slate-100 transition-colors hover:bg-slate-50/60;
+    @apply border-b border-slate-100 dark:border-surface-800/50 transition-colors hover:bg-slate-50/60 dark:hover:bg-surface-800/30;
   }
 
   /* ─── Section heading ─── */
   .section-title {
-    @apply text-[0.8125rem] font-semibold text-slate-900 tracking-tight;
+    @apply text-[0.8125rem] font-semibold text-slate-900 dark:text-slate-100 tracking-tight;
   }
 
   /* ─── Page heading ─── */
   .page-title {
-    @apply text-2xl font-bold text-slate-900 tracking-tight;
+    @apply text-2xl font-bold text-slate-900 dark:text-white tracking-tight;
   }
   .page-subtitle {
-    @apply text-[0.8125rem] text-slate-500 mt-1;
+    @apply text-[0.8125rem] text-slate-500 dark:text-slate-400 mt-1;
   }
 
   /* ─── Modal overlay ─── */
   .modal-overlay {
     @apply fixed inset-0 z-50 flex items-center justify-center
-           bg-slate-900/40 backdrop-blur-sm;
+           bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm;
   }
   .modal-panel {
-    @apply bg-white rounded-2xl shadow-modal w-full max-w-md mx-4 p-6
-           animate-slide-up;
+    @apply bg-white dark:bg-surface-900 rounded-2xl shadow-modal w-full max-w-md mx-4 p-6
+           animate-slide-up border border-transparent dark:border-surface-800;
   }
 
   /* ─── Empty states ─── */
