@@ -222,11 +222,13 @@ class SimulationEngine:
     at configured intervals and optionally triggering predictions.
     """
 
-    def __init__(self):
+    def __init__(self, model_service=None, session_factory=None):
         self.simulators: Dict[str, EquipmentSimulator] = {}
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self._listeners: List[Any] = []  # WebSocket connections
+        self._model_service = model_service
+        self._session_factory = session_factory
 
     def register_equipment(
         self,
@@ -274,19 +276,46 @@ class SimulationEngine:
             logger.info("Simulation engine stopped")
 
     async def _run_loop(self, interval: int) -> None:
-        """Main simulation loop."""
+        """Main simulation loop — generates readings, stores, predicts, broadcasts."""
         while self._running:
             try:
                 readings = self.generate_all_readings()
 
-                # Notify WebSocket listeners
+                # Notify WebSocket listeners with sensor data
                 for listener in self._listeners:
                     try:
                         await listener(readings)
                     except Exception as e:
                         logger.error("Listener notification failed: %s", e)
 
-                logger.debug("Generated %d sensor readings", len(readings))
+                # Run auto-prediction pipeline (store readings, predict, update risk, alerts)
+                prediction_results = []
+                if self._model_service and self._session_factory and self._model_service.is_loaded:
+                    try:
+                        from app.services.auto_predict import run_auto_prediction_cycle
+                        prediction_results = await run_auto_prediction_cycle(
+                            readings=readings,
+                            model_service=self._model_service,
+                            session_factory=self._session_factory,
+                        )
+                    except Exception as e:
+                        logger.error("Auto-prediction failed: %s", e)
+
+                # Broadcast prediction results via WebSocket
+                if prediction_results:
+                    for listener in self._listeners:
+                        try:
+                            await listener([
+                                {"type": "prediction", **pr}
+                                for pr in prediction_results
+                            ])
+                        except Exception as e:
+                            logger.error("Prediction broadcast failed: %s", e)
+
+                logger.debug(
+                    "Cycle complete: %d readings, %d predictions",
+                    len(readings), len(prediction_results),
+                )
 
             except Exception as e:
                 logger.error("Simulation cycle error: %s", e)
