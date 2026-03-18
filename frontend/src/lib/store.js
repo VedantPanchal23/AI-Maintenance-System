@@ -5,6 +5,28 @@
 import { create } from "zustand";
 import { authAPI, equipmentAPI, alertAPI, analyticsAPI } from "./api";
 
+// ─── Theme Store ───
+export const useThemeStore = create((set) => ({
+  theme: 'light',
+  initTheme: () => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = stored || (prefersDark ? 'dark' : 'light');
+      set({ theme });
+      if (theme === 'dark') document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+    }
+  },
+  toggleTheme: () => set((state) => {
+    const newTheme = state.theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+    return { theme: newTheme };
+  })
+}));
+
 // ─── Auth Store ───
 export const useAuthStore = create((set, get) => ({
   user: null,
