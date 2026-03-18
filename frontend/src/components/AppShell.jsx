@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuthStore } from "@/lib/store";
+import { useAuthStore, useThemeStore } from "@/lib/store";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -19,6 +19,7 @@ export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, isLoading, initialize } = useAuthStore();
+  const { initTheme } = useThemeStore();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Close mobile sidebar on route change
@@ -28,7 +29,8 @@ export default function AppShell({ children }) {
 
   useEffect(() => {
     initialize();
-  }, [initialize]);
+    initTheme();
+  }, [initialize, initTheme]);
 
   const isPublicPage = pathname === "/login" || pathname === "/register";
 
