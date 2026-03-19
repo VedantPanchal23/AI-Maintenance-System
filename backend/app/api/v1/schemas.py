@@ -318,6 +318,7 @@ class MLModelInfo(BaseModel):
     model_path: str
     metrics: Dict[str, Any]
     is_loaded: bool
+    feature_importance: Optional[Dict[str, float]] = None
 
 
 class RiskTrendPoint(BaseModel):
@@ -368,7 +369,9 @@ class MaintenanceLogCreate(BaseModel):
     equipment_id: uuid.UUID
     maintenance_type: MaintenanceTypeEnum
     description: str = Field(..., min_length=5, max_length=2000)
-    started_at: datetime
+    status: str = Field("todo", description="todo | in_progress | completed")
+    priority: str = Field("medium", description="low | medium | high | urgent")
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)
     downtime_hours: Optional[float] = Field(None, ge=0)
@@ -377,6 +380,9 @@ class MaintenanceLogCreate(BaseModel):
 
 class MaintenanceLogUpdate(BaseModel):
     description: Optional[str] = Field(None, min_length=5, max_length=2000)
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)
     downtime_hours: Optional[float] = Field(None, ge=0)
@@ -389,7 +395,9 @@ class MaintenanceLogResponse(BaseModel):
     performed_by: Optional[uuid.UUID]
     maintenance_type: str
     description: str
-    started_at: datetime
+    status: str
+    priority: str
+    started_at: Optional[datetime]
     completed_at: Optional[datetime]
     cost: Optional[float]
     downtime_hours: Optional[float]
