@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { analyticsAPI } from "@/lib/api";
+import { analyticsAPI, userAPI } from "@/lib/api";
 import {
   UserCircleIcon,
   ServerStackIcon,
   BellIcon,
+  UsersIcon
 } from "@heroicons/react/24/outline";
 
 const PREF_KEYS = [
@@ -41,6 +42,27 @@ export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const [prefs, setPrefs] = useState({});
   const [systemInfo, setSystemInfo] = useState(null);
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      userAPI.list().then(({ data }) => setUsers(data)).catch(() => {});
+    }
+  }, [user?.role]);
+
+  const toggleUserStatus = async (id, isActive) => {
+    try {
+      await userAPI.updateStatus(id, !isActive);
+      setUsers(users.map((u) => (u.id === id ? { ...u, is_active: !isActive } : u)));
+    } catch {}
+  };
+
+  const changeUserRole = async (id, role) => {
+    try {
+      await userAPI.updateRole(id, role);
+      setUsers(users.map((u) => (u.id === id ? { ...u, role } : u)));
+    } catch {}
+  };
 
   // Load persisted prefs on mount
   useEffect(() => {
@@ -147,6 +169,59 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* User Management (Admin Only) */}
+      {user?.role === "admin" && (
+        <div className="card">
+          <div className="flex items-center gap-2 mb-5">
+            <UsersIcon className="h-5 w-5 text-indigo-500" />
+            <h2 className="section-title">Directory Management</h2>
+          </div>
+          <div className="overflow-x-auto -mx-5 px-5">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700/50">
+                  <th className="pb-3 text-left font-semibold text-slate-500">User</th>
+                  <th className="pb-3 text-left font-semibold text-slate-500">Email</th>
+                  <th className="pb-3 text-left font-semibold text-slate-500">Role</th>
+                  <th className="pb-3 text-right font-semibold text-slate-500">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="py-3 font-medium text-slate-900 dark:text-white capitalize">{u.full_name}</td>
+                    <td className="py-3 text-slate-500">{u.email}</td>
+                    <td className="py-3">
+                      <select
+                        value={u.role}
+                        onChange={(e) => changeUserRole(u.id, e.target.value)}
+                        disabled={u.id === user?.id}
+                        className="bg-slate-50 dark:bg-surface-800 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="engineer">Engineer</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={() => toggleUserStatus(u.id, u.is_active)}
+                        disabled={u.id === user?.id}
+                        className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                          u.is_active ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                        } disabled:opacity-50 transition-colors`}
+                      >
+                        {u.is_active ? "Active" : "Suspended"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
