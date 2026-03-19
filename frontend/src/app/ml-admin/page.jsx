@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { mlAdminAPI } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { PageSpinner } from "@/components/Loading";
 import {
   BeakerIcon,
@@ -45,34 +46,46 @@ const ALGORITHMS = [
 ];
 
 const colorMap = {
-  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600" },
-  blue:    { bg: "bg-blue-50",    icon: "text-blue-600" },
-  amber:   { bg: "bg-amber-50",   icon: "text-amber-600" },
-  violet:  { bg: "bg-violet-50",  icon: "text-violet-600" },
+  emerald: { bg: "bg-emerald-50 text-emerald-600", icon: "text-emerald-600" },
+  blue:    { bg: "bg-blue-50 text-blue-600",    icon: "text-blue-600" },
+  amber:   { bg: "bg-amber-50 text-amber-600",   icon: "text-amber-600" },
+  violet:  { bg: "bg-violet-50 text-violet-600",  icon: "text-violet-600" },
 };
 
 export default function MLAdminPage() {
   const user = useAuthStore((s) => s.user);
   const [activeModel, setActiveModel] = useState(null);
+  const [models, setModels] = useState([]);
   const [training, setTraining] = useState({});
   const [results, setResults] = useState({});
+  const [backtestResults, setBacktestResults] = useState({});
   const [loading, setLoading] = useState(true);
   const [trainingAll, setTrainingAll] = useState(false);
   const [accessError, setAccessError] = useState(false);
 
   const refreshActiveModel = () => {
     mlAdminAPI.activeModel().then(({ data }) => setActiveModel(data)).catch(() => {});
+    mlAdminAPI.listModels().then(({ data }) => setModels(data)).catch(() => {});
   };
 
   useEffect(() => {
-    mlAdminAPI
-      .activeModel()
-      .then(({ data }) => setActiveModel(data))
+    Promise.all([
+      mlAdminAPI.activeModel().then(({ data }) => setActiveModel(data)),
+      mlAdminAPI.listModels().then(({ data }) => setModels(data)),
+    ])
       .catch((err) => {
         if (err.response?.status === 403) setAccessError(true);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const fiData = Object.entries(activeModel?.feature_importance || {})
+    .map(([name, value]) => ({
+      name: name.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+      importance: value * 100,
+    }))
+    .sort((a, b) => b.importance - a.importance)
+    .slice(0, 5); // top 5
 
   const isAnyTraining = Object.values(training).some(Boolean) || trainingAll;
 
@@ -94,6 +107,18 @@ export default function MLAdminPage() {
     }
   };
 
+  const handleBacktest = async (modelId) => {
+    setBacktestResults((p) => ({ ...p, [modelId]: { loading: true } }));
+    try {
+      const { data } = await mlAdminAPI.backtest(modelId);
+      setBacktestResults((p) => ({ ...p, [modelId]: { loading: false, data } }));
+    } catch (err) {
+      setBacktestResults((p) => ({
+        ...p,
+        [modelId]: { loading: false, error: err.response?.data?.detail || "Backtest failed" },
+      }));
+    }
+  };
   const handleTrainAll = async () => {
     if (isAnyTraining) return; // concurrency guard
     setTrainingAll(true);
@@ -118,7 +143,7 @@ export default function MLAdminPage() {
 
   if (loading) return <PageSpinner />;
 
-  if (accessError || (user && user.role !== "admin")) {
+  if (accessError || !user || !["admin", "engineer"].includes(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
@@ -126,7 +151,7 @@ export default function MLAdminPage() {
         </div>
         <h2 className="text-lg font-semibold text-slate-700">Access Restricted</h2>
         <p className="text-sm text-slate-400 max-w-sm text-center leading-relaxed">
-          ML model management requires administrator privileges. Contact your
+          ML model management requires engineer or administrator privileges. Contact your
           organization admin to request access.
         </p>
       </div>
@@ -135,37 +160,85 @@ export default function MLAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 py-4">
         <div>
-          <h1 className="page-title">ML Models</h1>
-          <p className="page-subtitle">
-            Train, manage, and deploy machine learning models
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">ML Operations</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            Train, orchestrate, and deploy machine learning models
           </p>
         </div>
-        <button onClick={handleTrainAll} disabled={isAnyTraining} className="btn-primary shrink-0">
-          <SparklesIcon className="h-4 w-4" />
-          {trainingAll ? "Training All…" : "Train All Models"}
+        <button onClick={handleTrainAll} disabled={isAnyTraining} className="btn-primary shrink-0 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+          <SparklesIcon className="h-4 w-4 relative z-10" />
+          <span className="relative z-10">{trainingAll ? "Training All…" : "Train All Models"}</span>
         </button>
       </div>
 
-      {/* Active model info */}
+      {/* Active model info & Feature Importance */}
       {activeModel && (
-        <div className="card !bg-brand-50 !border-brand-200/60">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-100">
-              <CheckCircleIcon className="h-5 w-5 text-brand-600" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="card !bg-brand-50/50 dark:!bg-brand-900/10 !border-brand-200/60 dark:!border-brand-500/20 shadow-brand-500/5">
+            <h3 className="text-xs font-bold text-brand-900 dark:text-brand-100 uppercase tracking-widest mb-4">Current Active Model</h3>
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 dark:bg-brand-500/20 shadow-inner">
+                <CheckCircleIcon className="h-7 w-7 text-brand-600 dark:text-brand-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-slate-900 dark:text-white">
+                  {activeModel.algorithm.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  <span>v{activeModel.version}</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                  <span>F1: {((activeModel.metrics?.f1 || 0) * 100).toFixed(1)}%</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                  <span>AUC: {((activeModel.metrics?.auc_roc || 0) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-brand-900">
-                Active Model: {activeModel.algorithm}
-              </p>
-              <p className="text-2xs text-brand-600 font-medium">
-                Version: {activeModel.version} · F1:{" "}
-                {((activeModel.metrics?.f1 || 0) * 100).toFixed(1)}% · AUC:{" "}
-                {((activeModel.metrics?.auc_roc || 0) * 100).toFixed(1)}%
-              </p>
+            <div className="mt-4 pt-4 border-t border-brand-200/50 dark:border-brand-500/20">
+               <p className="text-xs text-slate-400 dark:text-slate-500 truncate bg-slate-100 dark:bg-surface-800 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-surface-700/50 inline-flex font-mono">
+                 {activeModel.model_path.split("/").pop().split("\\").pop()}
+               </p>
             </div>
           </div>
+
+          {fiData.length > 0 && (
+            <div className="card h-full">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-widest mb-4">Driving Factors (Feature Importance)</h3>
+              <div className="h-28 w-full -ml-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={fiData} layout="vertical" margin={{ top: 0, right: 20, left: 40, bottom: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
+                      width={100}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                      contentStyle={{ borderRadius: "12px", border: "none", backgroundColor: "#0f172a", color: "#fff", padding: "8px 12px", fontSize: "12px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)" }}
+                      formatter={(val) => [`${val.toFixed(1)}%`, "Influence"]}
+                    />
+                    <Bar dataKey="importance" radius={[0, 4, 4, 0]} barSize={8}>
+                      {fiData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill="url(#colorFi)" />
+                      ))}
+                    </Bar>
+                    <defs>
+                      <linearGradient id="colorFi" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                      </linearGradient>
+                    </defs>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -247,6 +320,87 @@ export default function MLAdminPage() {
           );
         })}
       </div>
+      {/* Historical Models Table */}
+      {models.length > 0 && (
+        <div className="card mt-2">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-widest">Historical Models & Replay Backtesting</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700/50">
+                  <th className="pb-3 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Model Name</th>
+                  <th className="pb-3 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Algorithm</th>
+                  <th className="pb-3 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">F1 Score</th>
+                  <th className="pb-3 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {models.map((model) => (
+                  <React.Fragment key={model.id || model.version}>
+                    <tr className="hover:bg-slate-50 dark:hover:bg-surface-800/30 transition-colors">
+                      <td className="py-3 px-2 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                        {model.is_active && <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>}
+                        {model.name || `${model.algorithm}_v${model.version}`}
+                      </td>
+                      <td className="py-3 px-2 text-sm text-slate-500 dark:text-slate-400 capitalize">{model.algorithm.replace("_", " ")}</td>
+                      <td className="py-3 px-2 text-sm text-slate-500 dark:text-slate-400">{model.f1_score ? (model.f1_score * 100).toFixed(1) + "%" : "N/A"}</td>
+                      <td className="py-3 px-2 text-right">
+                        {model.id && (
+                          <button 
+                            onClick={() => handleBacktest(model.id)}
+                            disabled={backtestResults[model.id]?.loading}
+                            className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 bg-brand-50 dark:bg-brand-500/10 hover:bg-brand-100 dark:hover:bg-brand-500/20 px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {backtestResults[model.id]?.loading ? "Running..." : "Run Replay Backtest"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {backtestResults[model.id]?.data && (
+                      <tr className="bg-slate-50/50 dark:bg-surface-800/20 border-b border-slate-100 dark:border-slate-800/50">
+                        <td colSpan={4} className="py-4 px-4">
+                          <div className="flex flex-col gap-2">
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                              <CheckCircleIcon className="h-4 w-4" />
+                              Backtest Complete - {backtestResults[model.id].data.samples_tested.toLocaleString()} samples evaluated
+                            </span>
+                            <div className="grid grid-cols-4 gap-4 mt-2">
+                              <div>
+                                <span className="text-2xs text-slate-500 uppercase tracking-wider">Simulated F1</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{(backtestResults[model.id].data.metrics.f1 * 100).toFixed(1)}%</p>
+                              </div>
+                              <div>
+                                <span className="text-2xs text-slate-500 uppercase tracking-wider">Simulated Accuracy</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{(backtestResults[model.id].data.metrics.accuracy * 100).toFixed(1)}%</p>
+                              </div>
+                              <div>
+                                <span className="text-2xs text-slate-500 uppercase tracking-wider">True Positives</span>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{backtestResults[model.id].data.metrics.true_positives}</p>
+                              </div>
+                              <div>
+                                <span className="text-2xs text-slate-500 uppercase tracking-wider">False Negatives</span>
+                                <p className="text-sm font-bold text-red-500">{backtestResults[model.id].data.metrics.false_negatives}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {backtestResults[model.id]?.error && (
+                      <tr className="bg-red-50/50 dark:bg-red-500/5">
+                        <td colSpan={4} className="py-3 px-4 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+                          <XCircleIcon className="h-4 w-4" />
+                          {backtestResults[model.id].error}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
