@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_admin, get_db
+from app.api.v1.deps import get_current_admin, get_current_engineer_or_admin, get_db
 from app.api.v1.schemas import MLModelInfo, TrainModelRequest, TrainingResultResponse
 from app.config import get_settings
 from app.core.exceptions import MLModelException
@@ -37,7 +37,7 @@ router = APIRouter()
 async def train_model(
     request: Request,
     body: TrainModelRequest,
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -98,7 +98,7 @@ async def train_model(
 
 @router.post("/train-all")
 async def train_all_models(
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Train all configured algorithms and return comparative results."""
@@ -132,7 +132,7 @@ class LoadModelRequest(BaseModel):
 
 @router.get("/models")
 async def list_models(
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """List registered models from the database."""
@@ -186,7 +186,7 @@ async def list_models(
 async def load_model(
     request: LoadModelRequest,
     fastapi_request: Request,
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Load a specific model artifact into the inference service."""
@@ -231,7 +231,7 @@ async def load_model(
 @router.get("/models/active", response_model=MLModelInfo)
 async def get_active_model(
     fastapi_request: Request,
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
 ):
     """Get info about the currently loaded model."""
     model_service = fastapi_request.app.state.model_service
@@ -251,7 +251,7 @@ async def get_active_model(
 
 @router.get("/monitoring")
 async def get_model_monitoring(
-    user: User = Depends(get_current_admin),
+    user: User = Depends(get_current_engineer_or_admin),
 ):
     """
     Get model monitoring report — drift detection, prediction stats,
@@ -261,6 +261,71 @@ async def get_model_monitoring(
 
     monitor = get_model_monitor()
     return monitor.get_monitoring_report()
+
+
+@router.post("/models/{model_id}/backtest")
+async def backtest_model(
+    model_id: str,
+    user: User = Depends(get_current_engineer_or_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Run historical backtesting for a model against recent historical data.
+    """
+    result = await db.execute(
+        select(MLModel).where(MLModel.id == model_id)
+    )
+    ml_model = result.scalar_one_or_none()
+    if not ml_model:
+        raise MLModelException("Model not found")
+
+    def _run_backtest():
+        from app.ml.preprocessing import DataPreprocessor
+        from app.ml.features import FeatureEngineer
+        import joblib
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+
+        artifact = joblib.load(ml_model.model_path)
+        model = artifact["model"]
+        scaler = artifact["scaler"]
+        
+        df, _ = DataPreprocessor().prepare_dataset()
+        # Take the last 2000 rows as "recent historical unseen data"
+        df = df.tail(2000)
+        
+        fe = FeatureEngineer()
+        fe.scaler = scaler
+        fe._is_fitted = True
+        
+        X, y, _ = fe.prepare_for_training(df)
+        
+        y_pred = model.predict(X)
+        y_proba = model.predict_proba(X)[:, 1] if hasattr(model, "predict_proba") else y_pred.astype(float)
+        
+        cm = confusion_matrix(y, y_pred)
+        
+        return {
+            "model_id": model_id,
+            "samples_tested": len(df),
+            "metrics": {
+                "accuracy": float(accuracy_score(y, y_pred)),
+                "precision": float(precision_score(y, y_pred, zero_division=0)),
+                "recall": float(recall_score(y, y_pred, zero_division=0)),
+                "f1": float(f1_score(y, y_pred, zero_division=0)),
+                "auc_roc": float(roc_auc_score(y, y_proba)),
+                "true_positives": int(cm[1, 1]),
+                "false_positives": int(cm[0, 1]),
+                "true_negatives": int(cm[0, 0]),
+                "false_negatives": int(cm[1, 0]),
+            }
+        }
+
+    try:
+        results = await asyncio.to_thread(_run_backtest)
+        return results
+    except Exception as e:
+        logger.error("Backtest failed: %s", e)
+        raise MLModelException(f"Backtesting failed: {str(e)}")
 
 
 # ── Helpers ──────────────────────────────────────────────────────
