@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import Papa from "papaparse";
 
 export function generateExecutiveReport(dashboardData, trendsData) {
@@ -27,20 +27,20 @@ export function generateExecutiveReport(dashboardData, trendsData) {
   
   const kpiData = dashboardData ? [
     ["Total Monitored Assets", dashboardData.total_equipment?.toString() || "0"],
-    ["Pre-Emptive Alarms Today", dashboardData.alerts_today?.toString() || "0"],
-    ["Total High-Risk Assets", dashboardData.high_risk_count?.toString() || "0"],
+    ["Active Pre-Emptive Alarms", dashboardData.active_alerts?.toString() || "0"],
+    ["Critical High-Risk Assets", dashboardData.critical_count?.toString() || "0"],
     ["ML Inference Volume", dashboardData.predictions_today?.toString() || "0"],
     ["Overall Fleet Integrity", "99.9%"],
   ] : [["No data", "available"]];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 150,
     head: [["Metric", "Value"]],
     body: kpiData,
     theme: "striped",
-    headStyles: { fillColor: [14, 165, 233] }, // brand-500 equivalent
+    headStyles: { fillColor: [14, 165, 233] },
     styles: { cellPadding: 8, fontSize: 11 },
-    margin: { left: margin, right: 595 - margin }
+    margin: { left: margin, right: margin }
   });
 
   // Risk Trends
@@ -54,14 +54,42 @@ export function generateExecutiveReport(dashboardData, trendsData) {
     ? trendsData.map(t => [t.date, (t.avg_risk * 100).toFixed(1) + "%", (t.max_risk * 100).toFixed(1) + "%"])
     : [["N/A", "N/A", "N/A"]];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: finalY + 60,
     head: [["Date", "Fleet Average Risk", "Peak Anomaly Risk"]],
     body: trendRows,
     theme: "grid",
     headStyles: { fillColor: [244, 63, 94] },
     styles: { cellPadding: 6, fontSize: 10 },
-    margin: { left: margin, right: 595 - margin }
+    margin: { left: margin, right: margin }
+  });
+  
+  // Equipment Health Status
+  const trendFinalY = doc.lastAutoTable.finalY || 400;
+  
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Individual Asset Health Registry", margin, trendFinalY + 40);
+
+  const healthDataRows = dashboardData && dashboardData.equipment_health && dashboardData.equipment_health.length > 0
+    ? dashboardData.equipment_health.map(eq => [
+        eq.equipment_name,
+        eq.equipment_type.replace('_', ' ').toUpperCase(),
+        eq.status.toUpperCase(),
+        (eq.risk_score * 100).toFixed(1) + "%",
+        eq.active_alerts > 0 ? `${eq.active_alerts} Alarms` : "Clear"
+      ])
+    : [["No Asset Data", "-", "-", "-", "-"]];
+
+  autoTable(doc, {
+    startY: trendFinalY + 60,
+    head: [["Asset Name", "Hardware Type", "Current Status", "Risk Score", "Alerts"]],
+    body: healthDataRows,
+    theme: "grid",
+    headStyles: { fillColor: [15, 23, 42] },
+    styles: { cellPadding: 6, fontSize: 9 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: margin, right: margin }
   });
   
   // Footer
