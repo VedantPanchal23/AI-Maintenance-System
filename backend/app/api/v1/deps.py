@@ -89,6 +89,16 @@ async def get_current_engineer_or_admin(
     return user
 
 
+def require_roles(allowed_roles: list[UserRole]):
+    """Dynamic role-checker dependency factory."""
+    async def role_checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed_roles:
+            roles_str = ", ".join([r.value for r in allowed_roles])
+            raise ForbiddenException(f"Access requires one of: {roles_str}")
+        return user
+    return role_checker
+
+
 # ═══════════════════════════════════════════════════════════════
 # Tenant Context
 # ═══════════════════════════════════════════════════════════════
