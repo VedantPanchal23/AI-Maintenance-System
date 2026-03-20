@@ -336,6 +336,11 @@ MODEL_CONFIGS = {
             "random_state": 42,
             "n_jobs": -1,
         },
+        "param_grid": {
+            "n_estimators": [100, 300],
+            "max_depth": [10, 20, None],
+            "min_samples_split": [2, 5],
+        }
     },
     "xgboost": {
         "lazy_import": "xgboost",
@@ -352,10 +357,15 @@ MODEL_CONFIGS = {
             "reg_lambda": 1.5,
             "scale_pos_weight": 5,
             "eval_metric": "logloss",
-            "tree_method": "hist",  # GPU-compatible if xgboost built with CUDA
+            "tree_method": "hist",
             "random_state": 42,
             "n_jobs": -1,
         },
+        "param_grid": {
+            "max_depth": [6, 10],
+            "learning_rate": [0.01, 0.05],
+            "n_estimators": [300, 500]
+        }
     },
     "lightgbm": {
         "lazy_import": "lightgbm",
@@ -488,9 +498,21 @@ class TrainingPipeline:
                 len(X_train), y_train.mean() * 100,
             )
 
-        # ── Step 3b: Train ──
+        # ── Step 3b: Train or Tune ──
         model = self._get_model_instance(algorithm)
-        model.fit(X_train, y_train)
+        config = MODEL_CONFIGS[algorithm]
+
+        best_params = config["params"]
+        if "param_grid" in config and algorithm not in ("neural_network_deep",):
+            logger.info("Running GridSearchCV for %s...", algorithm)
+            from sklearn.model_selection import GridSearchCV
+            grid = GridSearchCV(model, config["param_grid"], cv=3, scoring="f1", n_jobs=-1)
+            grid.fit(X_train, y_train)
+            model = grid.best_estimator_
+            best_params = grid.best_params_
+            logger.info("Best parameters found: %s", best_params)
+        else:
+            model.fit(X_train, y_train)
 
         # ── Step 3c: Threshold Optimization (for PyTorch NN) ──
         if hasattr(model, "optimize_threshold"):
@@ -509,6 +531,16 @@ class TrainingPipeline:
         # Add training history for NN
         if hasattr(model, "training_history"):
             metrics["training_history"] = model.training_history
+
+        # Extract Feature Importances
+        feature_importance = {}
+        if hasattr(model, "feature_importances_"):
+            importances = model.feature_importances_
+            feature_importance = {
+                feat: float(imp) for feat, imp in zip(feature_columns, importances)
+            }
+            # Sort by importance descending
+            feature_importance = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True))
 
         # ── Step 5: Cross-validation (skip for deep NN — too slow) ──
         if algorithm not in ("neural_network_deep",):
@@ -533,10 +565,11 @@ class TrainingPipeline:
             "model": model,
             "scaler": self.feature_engineer.scaler,
             "feature_columns": feature_columns,
+            "feature_importance": feature_importance,
             "algorithm": algorithm,
             "version": version,
             "metrics": {k: v for k, v in metrics.items() if k != "training_history"},
-            "hyperparameters": MODEL_CONFIGS[algorithm]["params"],
+            "hyperparameters": best_params,
         }
 
         # Also save PyTorch state dict for production deployment
