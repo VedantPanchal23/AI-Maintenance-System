@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAlertStore } from "@/lib/store";
+import { maintenanceAPI } from "@/lib/api";
+import { toast } from "sonner";
 import AlertCard from "@/components/AlertCard";
 import { PageSpinner } from "@/components/Loading";
 import { FunnelIcon, XMarkIcon, BellSlashIcon } from "@heroicons/react/24/outline";
@@ -46,6 +48,23 @@ export default function AlertsPage() {
       setResolveTarget(null);
     } catch { /* store already logs */ }
     setResolveLoading(false);
+  };
+
+  const handleCreateTicket = async (alert) => {
+    try {
+      await maintenanceAPI.create({
+        equipment_id: alert.equipment_id,
+        maintenance_type: "corrective",
+        description: `Investigate alert: ${alert.title}. ${alert.message}`,
+        status: "todo",
+        priority: alert.severity === "critical" ? "urgent" : alert.severity === "high" ? "high" : "medium"
+      });
+      toast.success("Maintenance Kanban Ticket created successfully!", {
+        description: "Check the Maintenance Console to view new tickets."
+      });
+    } catch (e) {
+      toast.error("Failed to create maintenance ticket");
+    }
   };
 
   return (
@@ -102,6 +121,7 @@ export default function AlertsPage() {
               alert={alert}
               onAcknowledge={acknowledgeAlert}
               onResolve={handleResolve}
+              onCreateTicket={handleCreateTicket}
             />
           ))}
         </div>

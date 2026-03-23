@@ -16,6 +16,7 @@ import {
   SignalIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
+import { exportToCSV } from "@/lib/export";
 
 export default function EquipmentDetailPage() {
   const params = useParams();
@@ -243,9 +244,18 @@ export default function EquipmentDetailPage() {
 
       {/* Sensor Charts */}
       <div className="card">
-        <div className="flex items-center gap-2.5 mb-4">
-          <BoltIcon className="h-5 w-5 text-cyan-500" />
-          <h2 className="section-title">Sensor History</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2.5">
+            <BoltIcon className="h-5 w-5 text-cyan-500" />
+            <h2 className="section-title">Sensor History</h2>
+          </div>
+          <button
+            onClick={() => exportToCSV(sensorData, `sensor_data_${equipment?.name || "export"}.csv`)}
+            disabled={!sensorData || sensorData.length === 0}
+            className="btn-secondary text-xs py-1.5 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+          >
+            Export to CSV
+          </button>
         </div>
         <SensorChart
           data={sensorData}

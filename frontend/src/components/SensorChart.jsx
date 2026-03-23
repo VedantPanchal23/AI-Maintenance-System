@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -48,14 +48,40 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
+function CustomLegend({ payload, onClick, hidden }) {
+  return (
+    <div className="flex flex-wrap gap-3 pt-6 justify-center">
+      {payload.map((entry) => {
+        const isHidden = hidden[entry.dataKey];
+        return (
+          <button 
+            key={entry.value} 
+            onClick={() => onClick(entry.dataKey)}
+            className={`flex items-center gap-2 text-[0.6875rem] font-bold tracking-wider uppercase px-2.5 py-1.5 rounded-lg border transition-all duration-300 ${
+              isHidden 
+                ? 'opacity-40 grayscale border-transparent hover:opacity-70 bg-transparent' 
+                : 'border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.04] shadow-sm hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ backgroundColor: entry.color }} />
+            <span className={isHidden ? 'text-slate-500' : 'text-slate-700 dark:text-slate-200'}>{entry.value}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
- * Real-time sensor chart for a single equipment
+ * Real-time sensor chart with God-Tier interactive toggles
  */
 const SensorChart = memo(function SensorChart({
   data = [],
   sensors = ["air_temperature", "process_temperature"],
   height = 300,
 }) {
+  const [hidden, setHidden] = useState({});
+
   if (!data.length) {
     return (
       <div
@@ -67,6 +93,10 @@ const SensorChart = memo(function SensorChart({
       </div>
     );
   }
+
+  const toggleSeries = (dataKey) => {
+    setHidden((prev) => ({ ...prev, [dataKey]: !prev[dataKey] }));
+  };
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -100,15 +130,14 @@ const SensorChart = memo(function SensorChart({
         />
         <Tooltip content={<ChartTooltip />} />
         <Legend
-          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-          iconType="circle"
-          iconSize={8}
+          content={<CustomLegend hidden={hidden} onClick={toggleSeries} />}
         />
         {sensors.map((key) => (
           <Area
             key={key}
             type="monotone"
             dataKey={key}
+            hide={hidden[key]}
             stroke={SENSOR_COLORS[key] || "#6b7280"}
             fill={`url(#color-${key})`}
             strokeWidth={2}

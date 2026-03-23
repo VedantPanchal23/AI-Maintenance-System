@@ -5,7 +5,7 @@ import { ExclamationTriangleIcon } from "@heroicons/react/24/solid";
 /**
  * Single alert card with details and action buttons
  */
-export default function AlertCard({ alert, onAcknowledge, onResolve }) {
+export default function AlertCard({ alert, onAcknowledge, onResolve, onCreateTicket }) {
   if (!alert) return null;
 
   const {
@@ -82,13 +82,21 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
 
       {/* Actions */}
       {status === "active" && (
-        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60 flex gap-2">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60 flex flex-wrap gap-2">
           <button
             onClick={() => onAcknowledge?.(id)}
             className="btn-ghost text-xs py-1.5 px-3"
           >
             Acknowledge
           </button>
+          {onCreateTicket && (
+            <button
+              onClick={() => onCreateTicket?.(alert)}
+              className="btn-secondary text-xs py-1.5 px-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold"
+            >
+              Create Ticket
+            </button>
+          )}
           <button
             onClick={() => onResolve?.(id)}
             className="btn-primary text-xs py-1.5 px-3"
@@ -98,7 +106,15 @@ export default function AlertCard({ alert, onAcknowledge, onResolve }) {
         </div>
       )}
       {status === "acknowledged" && (
-        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-surface-800/60 flex gap-2">
+          {onCreateTicket && (
+            <button
+              onClick={() => onCreateTicket?.(alert)}
+              className="btn-secondary text-xs py-1.5 px-3 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold"
+            >
+              Create Ticket
+            </button>
+          )}
           <button
             onClick={() => onResolve?.(id)}
             className="btn-primary text-xs py-1.5 px-3"

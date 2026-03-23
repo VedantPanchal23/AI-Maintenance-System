@@ -46,11 +46,11 @@ export default function EquipmentPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Equipment</h1>
-          <p className="page-subtitle">
-            Monitor and manage all equipment units
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Asset Registry</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            Monitor, manage, and provision hardware nodes
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary shrink-0">
@@ -62,13 +62,13 @@ export default function EquipmentPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search equipment..."
-            className="input-field pl-10"
+            placeholder="Search equipment by name or ID..."
+            className="input-field pl-11"
           />
         </div>
         <select

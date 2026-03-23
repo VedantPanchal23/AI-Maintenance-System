@@ -6,6 +6,7 @@ import { PageSpinner } from "@/components/Loading";
 import { formatDate } from "@/lib/utils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { WrenchScrewdriverIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import KanbanBoard from "./KanbanBoard";
 
 export default function MaintenancePage() {
   const [equipment, setEquipment] = useState([]);
@@ -41,11 +42,11 @@ export default function MaintenancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Maintenance</h1>
-          <p className="page-subtitle">
-            Track and schedule maintenance activities
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Maintenance Console</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            Track and schedule hardware maintenance activities
           </p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary shrink-0">
@@ -56,7 +57,7 @@ export default function MaintenancePage() {
 
       {/* Maintenance queue */}
       <div className="card">
-        <h2 className="section-title mb-4">Equipment Under Maintenance</h2>
+        <h2 className="section-title mb-6">Equipment Under Maintenance</h2>
         {equipment.length > 0 ? (
           <div className="overflow-x-auto -mx-5">
             <table className="w-full text-sm min-w-[640px]">
@@ -98,6 +99,11 @@ export default function MaintenancePage() {
             <p className="text-2xs text-slate-400 mt-1">Schedule maintenance for equipment that needs attention</p>
           </div>
         )}
+      </div>
+
+      {/* Kanban Board */}
+      <div className="mt-8">
+        <KanbanBoard />
       </div>
 
       {/* ─── Schedule Maintenance Modal ─── */}

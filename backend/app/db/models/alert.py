@@ -89,7 +89,12 @@ class MaintenanceLog(Base, TimestampMixin, TenantMixin):
         String(50), nullable=False
     )  # preventive | corrective | predictive
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    
+    # Kanban Board Tracking
+    status: Mapped[str] = mapped_column(String(20), default="todo", index=True)
+    priority: Mapped[str] = mapped_column(String(20), default="medium")
+    
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     cost: Mapped[float] = mapped_column(Float, nullable=True)
     downtime_hours: Mapped[float] = mapped_column(Float, nullable=True)

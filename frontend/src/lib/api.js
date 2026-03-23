@@ -231,6 +231,20 @@ export const mlAdminAPI = {
 
   activeModel: () =>
     api.get("/ml/models/active"),
+
+  backtest: (modelId) =>
+    api.post(`/ml/models/${modelId}/backtest`),
+};
+
+// ═════════════════════════════════════════
+// Maintenance
+// ═════════════════════════════════════════
+export const maintenanceAPI = {
+  list: (params = {}) => api.get("/maintenance", { params }),
+  get: (id) => api.get(`/maintenance/${id}`),
+  create: (data) => api.post("/maintenance", data),
+  update: (id, data) => api.put(`/maintenance/${id}`, data),
+  delete: (id) => api.delete(`/maintenance/${id}`),
 };
 
 // ═════════════════════════════════════════
@@ -306,7 +320,14 @@ export function createSensorWebSocket(onMessage, onError) {
     close() {
       disposed = true;
       clearTimeout(reconnectTimer);
-      if (ws) ws.close();
+      if (ws) {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          // Delay closure until it opens to prevent "WebSocket is closed before the connection is established" error in React Strict Mode.
+          ws.onopen = () => ws.close();
+        } else if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      }
     },
   };
 }

@@ -84,6 +84,7 @@ class ModelInferenceService:
             "model_path": str(path),
             "feature_columns": artifact["feature_columns"],
             "metrics": artifact.get("metrics", {}),
+            "feature_importance": artifact.get("feature_importance", {}),
         }
 
         # Ensure PyTorch model is on correct device and in eval mode
